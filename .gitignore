@@ -1,0 +1,12 @@
+# Independent sub-repos — each has its own git remote and release cadence.
+# The workspace root only versions cross-cutting files (see CLAUDE.md).
+/flexi-day/
+/flexi-day-be/
+/flexi-day-emails/
+
+# Dependencies
+/node_modules/
+
+# OS / IDE
+.DS_Store
+.idea/
