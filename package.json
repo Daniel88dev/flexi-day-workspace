@@ -5,30 +5,25 @@
   "description": "Local workspace wrapper for the three Flexi Day repos (not a published package, not version-controlled). Scripts delegate into each sub-repo via `npm --prefix`.",
   "scripts": {
     "install:all": "npm --prefix ./flexi-day install && npm --prefix ./flexi-day-be install && npm --prefix ./flexi-day-emails install",
-
     "dev:be": "npm --prefix ./flexi-day-be run dev",
     "dev:fe": "npm --prefix ./flexi-day run dev",
     "dev:emails": "npm --prefix ./flexi-day-emails run dev",
-
     "build:be": "npm --prefix ./flexi-day-be run build",
     "build:fe": "npm --prefix ./flexi-day run build",
     "build:emails": "npm --prefix ./flexi-day-emails run build",
-
     "start:be": "npm --prefix ./flexi-day-be start",
-
     "test:be": "npm --prefix ./flexi-day-be test",
     "test:fe": "npm --prefix ./flexi-day run test",
-
     "lint:be": "npm --prefix ./flexi-day-be run lint",
     "lint:fe": "npm --prefix ./flexi-day run lint",
     "typecheck:emails": "npm --prefix ./flexi-day-emails run typecheck",
-
     "db:migrate": "npm --prefix ./flexi-day-be run db:migrate",
     "db:generate": "npm --prefix ./flexi-day-be run db:generate",
-
     "db:up": "docker start flexi-day-pg 2>/dev/null || docker run -d --name flexi-day-pg -p 5432:5432 -e POSTGRES_USER=$USER -e POSTGRES_DB=flexi-day -e POSTGRES_HOST_AUTH_METHOD=trust postgres:15",
     "db:down": "docker stop flexi-day-pg",
-
     "stack:up": "npm run db:migrate && (npm run dev:be & npm run dev:fe & wait)"
+  },
+  "devDependencies": {
+    "@sentry/cli": "^3.6.2"
   }
 }
