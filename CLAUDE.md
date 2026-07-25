@@ -53,6 +53,13 @@ Commands differ between repos — check the sub-repo's `package.json`/`CLAUDE.md
 - `flexi-day-emails` — no tests/lint; `npm run typecheck`, then `npm run build` renders + verifies
   templates; `npm run sync:dev` / `sync:prod` push to SES.
 
+## Comments
+
+Keep code comments to a minimum. Add one only when a developer genuinely needs to be aware of
+something non-obvious (a subtle gotcha, a non-local invariant, a deliberate workaround) — do not
+narrate what the code already says. **Exception:** API documentation is always generated — keep the
+JSDoc `@openapi` docs on routes complete and up to date (see `flexi-day-be` router patterns).
+
 ## Cross-cutting gotchas
 
 - **Divergent Node versions across CIs**: `flexi-day` uses Node 20, `flexi-day-be` and
