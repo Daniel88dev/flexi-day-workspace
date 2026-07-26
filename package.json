@@ -21,9 +21,16 @@
     "db:generate": "npm --prefix ./flexi-day-be run db:generate",
     "db:up": "docker start flexi-day-pg 2>/dev/null || docker run -d --name flexi-day-pg -p 5432:5432 -e POSTGRES_USER=$USER -e POSTGRES_DB=flexi-day -e POSTGRES_HOST_AUTH_METHOD=trust postgres:15",
     "db:down": "docker stop flexi-day-pg",
-    "stack:up": "npm run db:migrate && (npm run dev:be & npm run dev:fe & wait)"
+    "stack:up": "npm run db:migrate && (npm run dev:be & npm run dev:fe & wait)",
+    "stack:status": "node tools/dev-cli.mjs status",
+    "dev:status": "node tools/dev-cli.mjs status",
+    "dev:seed": "node tools/dev-cli.mjs seed",
+    "dev:scenario": "node tools/dev-cli.mjs scenario",
+    "dev:login": "node tools/dev-cli.mjs login",
+    "dev:reset": "node tools/dev-cli.mjs reset"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@sentry/cli": "^3.6.2"
   }
 }

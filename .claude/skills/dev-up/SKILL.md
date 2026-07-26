@@ -9,6 +9,9 @@ disable-model-invocation: true
 Postgres serves the backend; the apps run via npm. Run scripts from the **workspace root**
 `package.json` (they delegate into each repo). Bring things up in this order.
 
+At any point, `npm run stack:status` reports what is actually up (Postgres, backend, frontend, and
+the local dev tooling) in one shot.
+
 ## 1. Postgres — `:5432`, database `flexi-day`
 
 The backend's `DATABASE` URL (`postgresql://localhost:5432/flexi-day`) has no user/password, so it
@@ -34,7 +37,7 @@ npm run dev:be
 ```
 
 Requires env (`flexi-day-be/.env`): `DATABASE`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`. Config throws
-on startup if any required var is missing. Health check: `curl -s localhost:8080/api/auth/ok`.
+on startup if any required var is missing. Health check: `curl -s localhost:8080/health`.
 
 ## 3. Frontend — `:3000`
 
@@ -43,8 +46,21 @@ npm run dev:fe
 ```
 
 Talks to the backend via `NEXT_PUBLIC_API_URL` (local: `http://localhost:8080`, set in `.env.local`).
-Note: the frontend runs on **mock data** in dev, so it also works without the backend/DB running — skip
-steps 1–2 if you only need the UI. To screenshot the running frontend, use the `flexi-day:run` skill.
+The app pages need a running backend and a signed-in user — only the marketing landing page renders
+standalone.
+
+## 4. Seed and sign in
+
+Email verification goes through SES and does nothing locally, so use the dev tooling instead of
+signing up by hand:
+
+```bash
+npm run dev:scenario
+```
+
+Then open `http://localhost:3000/dev-sign-in/?email=owner@dev.local` to land on the dashboard
+authenticated. `npm run dev:reset` removes everything it seeded. The full loop for exercising a
+feature in the browser is the `ui-test` skill.
 
 ## Notes
 

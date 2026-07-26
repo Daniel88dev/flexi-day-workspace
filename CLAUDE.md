@@ -37,12 +37,38 @@ user/password, so it connects as the OS user via trust auth). Either works:
 
 Then: `npm run db:migrate` once, and:
 - Backend on `:8080` — `npm run dev:be` (requires reachable `DATABASE`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`).
-- Frontend on `:3000` — `npm run dev:fe`. Runs on in-memory **mock data** in dev (every reload resets
-  state), so no DB is needed just to work on the UI.
+- Frontend on `:3000` — `npm run dev:fe`. It talks to the **real backend**; only the marketing landing
+  page renders standalone (`lib/demo/` feeds that page alone). Every `app/(app)/` page needs the API
+  and a signed-in user.
 - Emails preview — `npm run dev:emails` (react-email, also binds `:3000` — conflicts with the frontend;
   run one at a time or override the port).
 
-See the `/dev-up` skill for the full startup sequence.
+`npm run stack:status` reports what is currently up. See the `/dev-up` skill for the full startup
+sequence.
+
+## Local dev tooling (never reachable in production)
+
+Sign-up requires email verification through SES, which does nothing locally, so seeding and sign-in
+go through a gated dev surface instead of manual `curl` + `psql`:
+
+| Command | Effect |
+|---|---|
+| `npm run dev:scenario` | seeds `owner@dev.local` (manager + approver), three members, quotas and bookings in every state |
+| `npm run dev:seed` | one verified user, optionally with a team |
+| `npm run dev:login <email>` | issues a signed session cookie for API calls |
+| `npm run dev:reset` | deletes every `@dev.local` account and its data — nothing else |
+
+Then `http://localhost:3000/dev-sign-in/?email=owner@dev.local` lands on the dashboard already
+authenticated. The `flexi-dev` MCP server (`.mcp.json`, `tools/mcp/flexi-dev/`) exposes the same
+operations as tools. The `ui-test` skill is the full loop for exercising a feature in the browser.
+
+The surface is `flexi-day-be`'s `/api/dev/*`, and it only exists when **all** of these hold:
+`NODE_ENV != production`, `DEV_TOOLS_ENABLED=true`, `DATABASE` on localhost, and a `DEV_TOOLS_TOKEN`
+of ≥16 chars — the backend **refuses to boot** if the flag is set with `NODE_ENV=production` or a
+remote database. Every request must also come from a loopback socket peer (checked on
+`socket.remoteAddress`, not the spoofable `X-Forwarded-For`) and carry the token as `x-dev-token`.
+The frontend's `/dev-sign-in/` route is excluded from production builds by `pageExtensions` in
+`next.config.ts`, so it never reaches `out/`. Don't relax any of this.
 
 ## Per-repo command differences
 
