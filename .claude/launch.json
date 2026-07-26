@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev:fe"],
       "port": 3000
+    },
+    {
+      "name": "flexi-be",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:be"],
+      "port": 8080
     }
   ]
 }
