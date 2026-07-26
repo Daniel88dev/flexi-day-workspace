@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "flexi-fe",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev:fe"],
+      "port": 3000
+    }
+  ]
+}
