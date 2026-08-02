@@ -88,8 +88,10 @@ JSDoc `@openapi` docs on routes complete and up to date (see `flexi-day-be` rout
 
 ## Cross-cutting gotchas
 
-- **Divergent Node versions across CIs**: `flexi-day` uses Node 20, `flexi-day-be` and
-  `flexi-day-emails` use Node 22. Match the target repo's version.
+- **Node 24 everywhere, pinned in `.nvmrc`**: all three repos read the version from their own
+  `.nvmrc` (CI via `node-version-file`), so use the matching Node locally — installing with a
+  different npm major rewrites `package-lock.json` into a form the other rejects, and `npm ci`
+  then fails before any CI step runs.
 - **Backend ESM imports**: in `flexi-day-be`, all relative imports must use `.js` extensions even
   for `.ts` source (e.g. `import { auth } from "../utils/auth.js"`).
 - **Email placeholders are literal**: in `flexi-day-emails`, Handlebars `{{variable}}` tokens must
