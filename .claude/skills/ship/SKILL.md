@@ -46,8 +46,9 @@ Run the independent ones in parallel (one Bash call each, same block). Notes:
 - **Backend e2e**: if Postgres is up, also run `npm --prefix flexi-day-be run test:e2e` (uses
   `.env.e2e.test`, self-skips via `test:e2e:check` when no DB). CI runs it, so a failure here is a
   failure.
-- **`npm audit --audit-level=high`** in each touched repo when dependencies changed — both CIs fail on
-  it and both repos sit at zero advisories.
+- **Dependency advisories are not a gate.** No CI runs `npm audit` — it resolves against a live
+  advisory feed, so it fails on commits it passed the day before. Dependabot's alerts and security
+  PRs cover this instead. Do not add an audit step back into a PR-blocking job.
 - `flexi-day-emails` `build` also *verifies* templates: it fails when a Handlebars `{{token}}` got
   URL-encoded or entity-escaped. That failure is real, never a flake.
 
