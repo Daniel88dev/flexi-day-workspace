@@ -102,6 +102,30 @@ tool(
 );
 
 tool(
+  "dev_set_plan",
+  {
+    title: "Force a billing plan state",
+    description:
+      "Forces a billing state on a local user's organization without touching Paddle. States: FREE/PRO/ENTERPRISE/CUSTOM set a manual plan override; GRACE simulates a lapsed Pro plan still inside its 14-day grace window; EXPIRED simulates one past grace (over-limit groups go read-only); CLEAR removes all forced state. Returns the resolved entitlements.",
+    inputSchema: {
+      email: z.string().optional().describe(`defaults to owner@${devConfig.seedDomain}`),
+      state: z
+        .enum(["FREE", "PRO", "ENTERPRISE", "CUSTOM", "GRACE", "EXPIRED", "CLEAR"])
+        .describe("the billing state to force"),
+      manualMaxGroups: z.number().optional().describe("CUSTOM only: group limit"),
+      manualMaxMembersPerGroup: z.number().optional().describe("CUSTOM only: members per group"),
+    },
+  },
+  (args) =>
+    devApi("/billing/set-plan", {
+      email: args.email ?? `owner@${devConfig.seedDomain}`,
+      state: args.state,
+      manualMaxGroups: args.manualMaxGroups,
+      manualMaxMembersPerGroup: args.manualMaxMembersPerGroup,
+    })
+);
+
+tool(
   "dev_reset",
   {
     title: "Delete seeded data",
