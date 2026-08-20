@@ -111,3 +111,15 @@ JSDoc `@openapi` docs on routes complete and up to date (see `flexi-day-be` rout
   markdown. `npm run build` fails the verify step if a token is URL-encoded or entity-escaped.
 - **Frontend auto-formats on edit**: `flexi-day/.claude/settings.json` runs `prettier --write` after
   every Write/Edit, so files there change formatting immediately after you edit them.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in each sub-repo's GitHub Issues (the workspace root has no remote, so `gh` needs
+`-R Daniel88dev/<repo>` or must run inside the sub-repo). See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Multi-context: a root `CONTEXT-MAP.md` points at per-repo `CONTEXT.md` files; ADRs live in each
+repo's `docs/adr/`, system-wide ones at the workspace root. See `docs/agents/domain.md`.
