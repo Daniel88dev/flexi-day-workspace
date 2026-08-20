@@ -79,6 +79,18 @@ Commands differ between repos — check the sub-repo's `package.json`/`CLAUDE.md
 - `flexi-day-emails` — no tests/lint; `npm run typecheck`, then `npm run build` renders + verifies
   templates; `npm run sync:dev` / `sync:prod` push to SES.
 
+## Writing style
+
+Apply the `unslop` skill (`.claude/skills/unslop/SKILL.md`) to all prose written for the user —
+chat responses, docs, commit messages, PR descriptions. It removes AI-tell patterns (puffery,
+em-dash overuse, filler, chatbot phrases) and keeps the writing plain and direct.
+
+## Code review
+
+For review requests ("review this", "check my changes"), use the `mattpocock-skills:code-review`
+plugin skill by default. Use the built-in `/code-review` (including ultra) only when the user
+names it explicitly.
+
 ## Comments
 
 Keep code comments to a minimum. Add one only when a developer genuinely needs to be aware of
