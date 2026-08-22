@@ -19,7 +19,8 @@ esac
 workspace=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 report=""
 
-for repo in flexi-day flexi-day-be flexi-day-emails; do
+# "." is the workspace repo itself, which runs its own format:check in CI.
+for repo in . flexi-day flexi-day-be flexi-day-emails; do
   dir="$workspace/$repo"
   [ -x "$dir/node_modules/.bin/prettier" ] || continue
   cd "$dir" || continue
@@ -33,7 +34,8 @@ for repo in flexi-day flexi-day-be flexi-day-emails; do
   [ -n "$changed" ] || continue
 
   printf '%s' "$changed" | tr '\n' '\0' | xargs -0 git add || true
-  report="$report $repo: $(printf '%s' "$changed" | tr '\n' ' ')"
+  label=$([ "$repo" = "." ] && echo workspace || echo "$repo")
+  report="$report $label: $(printf '%s' "$changed" | tr '\n' ' ')"
 done
 
 [ -n "$report" ] && echo "prettier reformatted and re-staged —$report" >&2

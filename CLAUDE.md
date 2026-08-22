@@ -99,11 +99,15 @@ change, run the plan or apply the migration locally, then hand over the exact co
 
 ## Formatting
 
-All three repos run prettier as a CI job of its own (`format:check`), separate from eslint — `lint`
+All four repos run prettier as a CI job of its own (`format:check`), separate from eslint — `lint`
 passing says nothing about formatting. Each repo's `.claude/settings.json` formats on `Write` and
 `Edit`, but **a file written through Bash** — `sed`, a heredoc, a `python` one-liner — **skips that
 hook entirely**. `tools/hooks/format-staged.sh` catches those at commit time and re-stages them; run
-`npm run format:fe|be|emails` from the root if you want it clean before that.
+`npm run format:fe|be|emails` from the root, or `npm run format` for the workspace repo's own files,
+if you want it clean before that.
+
+All four use the same prettier settings (`printWidth` 100), so a file formats identically wherever
+the shared tooling touches it.
 
 ## Writing style
 
