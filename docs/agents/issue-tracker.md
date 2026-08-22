@@ -14,7 +14,9 @@ sub-repo directory or pass `-R` explicitly:
 ## Conventions
 
 - **Create an issue**: `gh -R Daniel88dev/<repo> issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.
-- **Read an issue**: `gh -R Daniel88dev/<repo> issue view <number> --comments`, filtering comments by `jq` and also fetching labels.
+- **Read an issue**: `gh -R Daniel88dev/<repo> issue view <number> --comments` to read it yourself.
+  To feed it to a filter, `gh -R Daniel88dev/<repo> issue view <number> --json title,body,labels,comments --jq '{title, body, labels: [.labels[].name], comments: [.comments[].body]}'`
+  — `--comments` renders text, so `--jq` needs `--json` to have anything to match against.
 - **List issues**: `gh -R Daniel88dev/<repo> issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters.
 - **Comment on an issue**: `gh -R Daniel88dev/<repo> issue comment <number> --body "..."`
 - **Apply / remove labels**: `gh -R Daniel88dev/<repo> issue edit <number> --add-label "..."` / `--remove-label "..."`

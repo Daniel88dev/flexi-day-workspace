@@ -20,7 +20,7 @@ actually get resolved.
 
 ## File structure
 
-```
+```text
 /                                      ← workspace root (local git, no remote)
 ├── CONTEXT-MAP.md                     ← created lazily; points at per-repo contexts
 ├── docs/adr/                          ← system-wide decisions (cross-repo contracts, deploy topology)
