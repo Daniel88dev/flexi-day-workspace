@@ -2,8 +2,16 @@
   "name": "flexi-day-workspace",
   "version": "0.0.0",
   "private": true,
-  "description": "Local workspace wrapper for the three Flexi Day repos (not a published package, not version-controlled). Scripts delegate into each sub-repo via `npm --prefix`.",
+  "description": "Workspace repo for the three Flexi Day repos: shared agent skills, dev tooling and cross-repo docs. Scripts delegate into each sub-repo via `npm --prefix`.",
   "scripts": {
+    "check": "npm run format:check && npm run lint && npm run check:links && npm run check:shell && npm run check:actions",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "check:links": "node tools/check-links.mjs",
+    "check:shell": "command -v shellcheck >/dev/null 2>&1 && shellcheck tools/hooks/*.sh || echo \"shellcheck not installed, skipping (CI runs it)\"",
+    "check:actions": "command -v actionlint >/dev/null 2>&1 && actionlint || echo \"actionlint not installed, skipping (CI runs it)\"",
     "install:all": "npm --prefix ./flexi-day install && npm --prefix ./flexi-day-be install && npm --prefix ./flexi-day-emails install",
     "dev:be": "npm --prefix ./flexi-day-be run dev",
     "dev:fe": "npm --prefix ./flexi-day run dev",
@@ -36,7 +44,16 @@
     "dev:reset": "node tools/dev-cli.mjs reset"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@sentry/cli": "^3.6.2"
+    "@sentry/cli": "^3.6.2",
+    "eslint": "^10.9.0",
+    "globals": "^17.11.0",
+    "prettier": "3.9.6"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Daniel88dev/flexi-day-workspace.git"
   }
 }

@@ -13,7 +13,12 @@ import { devApi, devConfig, signInUrlFor, stackStatus } from "../../lib/devApi.m
 const server = new McpServer({ name: "flexi-dev", version: "1.0.0" });
 
 const text = (value) => ({
-  content: [{ type: "text", text: typeof value === "string" ? value : JSON.stringify(value, null, 2) }],
+  content: [
+    {
+      type: "text",
+      text: typeof value === "string" ? value : JSON.stringify(value, null, 2),
+    },
+  ],
 });
 
 const failed = (err) => ({

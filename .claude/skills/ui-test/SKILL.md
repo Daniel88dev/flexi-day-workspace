@@ -51,7 +51,7 @@ on the browser context directly. It only works from a clean state — the real c
 so `document.cookie` cannot overwrite an existing session.
 
 **The real sign-in form** at `/sign-in/` works with the seeded password and is what to use when the
-auth flow *itself* is what is being tested.
+auth flow _itself_ is what is being tested.
 
 ## 4. Drive and verify
 
