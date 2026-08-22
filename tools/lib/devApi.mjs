@@ -26,9 +26,13 @@ function readEnvFile(path) {
 
 const backendEnv = readEnvFile(BACKEND_ENV);
 
+// Interpolated into a URL below, where a non-numeric value would rewrite the host:
+// `http://localhost:8080@evil.com` parses with hostname `evil.com`.
+const backendPort = /^\d{1,5}$/.test(backendEnv.PORT ?? "") ? backendEnv.PORT : "8080";
+
 export const devConfig = {
   workspaceRoot: WORKSPACE_ROOT,
-  apiUrl: process.env.FLEXI_API_URL ?? `http://localhost:${backendEnv.PORT ?? "8080"}`,
+  apiUrl: process.env.FLEXI_API_URL ?? `http://localhost:${backendPort}`,
   appUrl: process.env.FLEXI_APP_URL ?? backendEnv.APP_URL ?? "http://localhost:3000",
   token: process.env.DEV_TOOLS_TOKEN ?? backendEnv.DEV_TOOLS_TOKEN ?? "",
   seedDomain: backendEnv.DEV_SEED_EMAIL_DOMAIN ?? "dev.local",
@@ -44,6 +48,31 @@ export class DevApiError extends Error {
   }
 }
 
+const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * `devGuard` only answers callers on loopback, so a config pointing anywhere else cannot
+ * succeed — it can only hand `DEV_TOOLS_TOKEN` to whoever is listening. Checks the parsed
+ * hostname rather than the string, because `http://localhost:8080@evil.com` looks local.
+ */
+function assertLoopback(rawUrl, source) {
+  let url;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new DevApiError(`${source} is not a valid URL (${rawUrl}).`, 0);
+  }
+
+  if (!LOOPBACK_HOSTNAMES.has(url.hostname)) {
+    throw new DevApiError(
+      `${source} must stay on loopback, but resolves to ${url.hostname} (${rawUrl}). ` +
+        `Refusing to send DEV_TOOLS_TOKEN off this machine.`,
+      0
+    );
+  }
+  return url;
+}
+
 export async function devApi(path, body) {
   if (!devConfig.token) {
     throw new DevApiError(
@@ -51,6 +80,8 @@ export async function devApi(path, body) {
       0
     );
   }
+
+  assertLoopback(devConfig.apiUrl, "The backend URL (FLEXI_API_URL or PORT)");
 
   let res;
   try {
@@ -105,13 +136,22 @@ async function probeHttp(url) {
 }
 
 /** One shot answer to "what is actually running right now". */
+/** Reporting a broken setup is this command's job, so a malformed .env value must not crash it. */
+function portOf(rawUrl, fallback) {
+  try {
+    return Number(new URL(rawUrl).port) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function stackStatus() {
-  const dbPort = Number(new URL(devConfig.databaseUrl || "postgres://localhost:5432").port || 5432);
+  const dbPort = portOf(devConfig.databaseUrl || "postgres://localhost:5432", 5432);
 
   const [postgres, backend, frontend] = await Promise.all([
     probeTcp(dbPort),
     probeHttp(`${devConfig.apiUrl}/health`),
-    probeTcp(new URL(devConfig.appUrl).port || 3000),
+    probeTcp(portOf(devConfig.appUrl, 3000)),
   ]);
 
   let dev = null;
