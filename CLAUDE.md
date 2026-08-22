@@ -59,6 +59,25 @@ All three repos pin Node 24 in their own `.nvmrc` (CI reads it via `node-version
 matching Node locally: installing with a different npm major rewrites `package-lock.json` into a
 form the other rejects, and `npm ci` then fails before any CI step runs.
 
+## Infrastructure
+
+AWS is Terraform, applied by hand from a local checkout. There is no CI job and no remote state, so
+a plan only runs on this machine. A task that adds an environment variable, an IAM permission, or an
+AWS resource is not finished until the Terraform files carry it.
+
+**`terraform apply` and production database migrations both belong to the user.** Prepare the
+change, run the plan or apply the migration locally, then hand over the exact command and stop.
+`npm run db:migrate:prod` enforces this itself: it quits unless stdin is a terminal.
+
+- **Backend** (App Runner, RDS, Secrets Manager, Route 53 for `api.flexi-day.com`) —
+  `flexi-day-be/docs/terraform.md`.
+- **Email and inbound mail** (GitHub Actions OIDC role, SES receipt rules, MX and SPF) —
+  `flexi-day-emails/terraform/README.md`.
+- **Frontend** has no Terraform. Its S3 bucket and CloudFront distribution were created by hand, and
+  its build-time `NEXT_PUBLIC_*` values are GitHub Actions repository variables read in
+  `flexi-day/.github/workflows/ci.yml`. Adding one there means adding it to that workflow and asking
+  the user to set the variable with `gh variable set`.
+
 ## Writing style
 
 Apply the `unslop` skill to all prose written for the user, including chat responses, docs, commit
