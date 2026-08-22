@@ -1,15 +1,18 @@
 # Issue tracker: GitHub, per sub-repo
 
-Issues and specs live in each sub-repo's GitHub Issues. The workspace root has **no remote** —
-`gh` cannot infer a repo from here, so every `gh` command must either run inside the relevant
-sub-repo directory or pass `-R` explicitly:
+Issues and specs live in each sub-repo's GitHub Issues. The workspace root is itself a repo
+(`Daniel88dev/flexi-day-workspace`), so a bare `gh` command run from here resolves to **the
+workspace repo, not the product repos** — a product issue filed that way lands in the wrong
+tracker. Every `gh` command must run inside the relevant sub-repo directory or pass `-R`
+explicitly:
 
-| Work touching | Repo for the issue |
-|---|---|
-| `flexi-day/` (frontend) | `Daniel88dev/flexi-day` |
-| `flexi-day-be/` (backend API) | `Daniel88dev/flexi-day-be` |
-| `flexi-day-emails/` (email templates) | `Daniel88dev/flexi-day-emails` |
-| Cross-cutting | The repo the work *mostly* touches; cross-reference the others in the body |
+| Work touching                                            | Repo for the issue                                                         |
+| -------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `flexi-day/` (frontend)                                  | `Daniel88dev/flexi-day`                                                    |
+| `flexi-day-be/` (backend API)                            | `Daniel88dev/flexi-day-be`                                                 |
+| `flexi-day-emails/` (email templates)                    | `Daniel88dev/flexi-day-emails`                                             |
+| Cross-cutting                                            | The repo the work _mostly_ touches; cross-reference the others in the body |
+| Workspace tooling (`tools/`, `.claude/`, `docs/agents/`) | `Daniel88dev/flexi-day-workspace`                                          |
 
 ## Conventions
 
@@ -23,7 +26,7 @@ sub-repo directory or pass `-R` explicitly:
 - **Close**: `gh -R Daniel88dev/<repo> issue close <number> --comment "..."`
 
 When already working inside a sub-repo directory, plain `gh issue ...` works — `gh` infers the
-repo from that clone's remote. A bare issue number is ambiguous across the three repos; always
+repo from that clone's remote. A bare issue number is ambiguous across the four repos; always
 name the repo when referencing an issue in prose (e.g. `flexi-day-be#12`).
 
 ## Pull requests as a triage surface

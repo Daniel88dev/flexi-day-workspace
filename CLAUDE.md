@@ -2,18 +2,37 @@
 
 ## Workspace layout
 
-This root directory is **not a git repository**. It is a workspace holding three independent repos
-that make up the Flexi Day vacation/day-off management product, each with its own remote,
-`package.json`, CI, `CLAUDE.md` and `.claude/`:
+This root directory is its own git repository — `Daniel88dev/flexi-day-workspace`, public. It
+versions only the cross-cutting files (`CLAUDE.md`, `.claude/`, `docs/`, `tools/`, `package.json`)
+and holds three independent repos that make up the Flexi Day vacation/day-off management product,
+each with its own remote, `package.json`, CI, `CLAUDE.md` and `.claude/`:
 
-| Directory | Role | Stack |
-|-----------|------|-------|
-| `flexi-day/` | Frontend (static-export SPA) | Next.js 16 App Router, React 19, Tailwind v4, shadcn/ui, TanStack Query, better-auth |
-| `flexi-day-be/` | Backend API | Express 5 (ESM), Drizzle + PostgreSQL, better-auth, AWS SESv2 |
-| `flexi-day-emails/` | Transactional email templates → AWS SES | react-email, AWS SESv2 |
+| Directory           | Role                                    | Stack                                                                                |
+| ------------------- | --------------------------------------- | ------------------------------------------------------------------------------------ |
+| `flexi-day/`        | Frontend (static-export SPA)            | Next.js 16 App Router, React 19, Tailwind v4, shadcn/ui, TanStack Query, better-auth |
+| `flexi-day-be/`     | Backend API                             | Express 5 (ESM), Drizzle + PostgreSQL, better-auth, AWS SESv2                        |
+| `flexi-day-emails/` | Transactional email templates → AWS SES | react-email, AWS SESv2                                                               |
 
 Each sub-repo's `CLAUDE.md` carries its own conventions and gotchas, and loads when you work in it.
 This file covers only what spans repos.
+
+The three sub-directories are separate clones, gitignored here — this repo never versions their
+contents. `todo/` is gitignored too: it holds working notes that stay on the machine.
+
+## Changing this repo
+
+`main` is protected and takes no direct pushes. Every change here — including a one-line doc
+fix — goes on a branch and merges through a PR, exactly like the sub-repos:
+
+```bash
+git checkout -b docs/<short-slug>
+git commit
+git push -u origin docs/<short-slug>
+gh pr create --repo Daniel88dev/flexi-day-workspace --base main
+```
+
+CI runs prettier, eslint, shellcheck, actionlint and a relative-link check on every PR
+(`.github/workflows/ci.yml`). Run `npm run check` before pushing to catch all of it locally.
 
 ## How the repos connect
 
@@ -38,12 +57,12 @@ database works as is, otherwise `npm run db:up` starts a `flexi-day-pg` containe
 Sign-up requires email verification through SES, which does nothing locally, so seeding and sign-in
 go through a gated dev surface rather than manual `curl` + `psql`:
 
-| Command | Effect |
-|---|---|
-| `npm run dev:scenario` | seeds `owner@dev.local` (manager + approver), three members, quotas and bookings in every state |
-| `npm run dev:seed` | one verified user, optionally with a team |
-| `npm run dev:login <email>` | issues a signed session cookie for API calls |
-| `npm run dev:reset` | deletes every `@dev.local` account and its data, nothing else |
+| Command                     | Effect                                                                                          |
+| --------------------------- | ----------------------------------------------------------------------------------------------- |
+| `npm run dev:scenario`      | seeds `owner@dev.local` (manager + approver), three members, quotas and bookings in every state |
+| `npm run dev:seed`          | one verified user, optionally with a team                                                       |
+| `npm run dev:login <email>` | issues a signed session cookie for API calls                                                    |
+| `npm run dev:reset`         | deletes every `@dev.local` account and its data, nothing else                                   |
 
 `http://localhost:3000/dev-sign-in/?email=owner@dev.local` then lands on the dashboard already
 authenticated. The `flexi-dev` MCP server (`.mcp.json`, `tools/mcp/flexi-dev/`) exposes the same
@@ -105,9 +124,9 @@ stay complete and current.
 
 ## Agent skills
 
-- **Issue tracker** — issues live in each sub-repo's GitHub Issues. The workspace root has no
-  remote, so `gh` needs `-R Daniel88dev/<repo>` or must run inside the sub-repo. See
-  `docs/agents/issue-tracker.md`.
+- **Issue tracker** — issues live in each sub-repo's GitHub Issues. A bare `gh` run from the
+  workspace root now resolves to `flexi-day-workspace`, so product issues need an explicit
+  `-R Daniel88dev/<repo>` or must run inside the sub-repo. See `docs/agents/issue-tracker.md`.
 - **Triage labels** — the five canonical roles, label string equal to role name, in each sub-repo's
   GitHub Issues. See `docs/agents/triage-labels.md`.
 - **Domain docs** — a root `CONTEXT-MAP.md` points at per-repo `CONTEXT.md` files; ADRs live in each

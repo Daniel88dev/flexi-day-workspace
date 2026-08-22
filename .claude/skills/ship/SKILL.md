@@ -19,9 +19,9 @@ for d in . flexi-day flexi-day-be flexi-day-emails; do echo "== $d"; git -C "$d"
 
 - Only run gates for the repos that actually have changes. A backend-only change does not need the
   frontend test suite.
-- Each sub-repo is its **own git repo with its own remote**; the workspace root is a fourth repo with
-  **no remote** (it versions `CLAUDE.md`, `.claude/`, `tools/`, `package.json` only). Changes
-  spanning repos become **one PR per repo**.
+- Each sub-repo is its **own git repo with its own remote**; the workspace root is a fourth repo
+  with its own remote too (`Daniel88dev/flexi-day-workspace` — it versions `CLAUDE.md`, `.claude/`,
+  `docs/`, `tools/`, `package.json` only). Changes spanning repos become **one PR per repo**.
 - Note the current branch per repo. If a repo is already on a feature branch, reuse it at gate 6
   instead of branching again.
 - Read the actual diff before anything else — you cannot review or test what you have not read:
@@ -32,11 +32,12 @@ for d in . flexi-day flexi-day-be flexi-day-emails; do echo "== $d"; git -C "$d"
 Run from the **workspace root**; these scripts delegate into the sub-repos. Use Node 24 (`.nvmrc`) —
 a different npm major rewrites `package-lock.json` and breaks `npm ci` in CI.
 
-| Repo | Checks (in order) |
-|---|---|
-| `flexi-day` (FE) | `npm run format:check:fe` · `npm run lint:fe` · `npm run test:fe` · `npm run build:fe` |
+| Repo                | Checks (in order)                                                                      |
+| ------------------- | -------------------------------------------------------------------------------------- |
+| `flexi-day` (FE)    | `npm run format:check:fe` · `npm run lint:fe` · `npm run test:fe` · `npm run build:fe` |
 | `flexi-day-be` (BE) | `npm run format:check:be` · `npm run lint:be` · `npm run build:be` · `npm run test:be` |
-| `flexi-day-emails` | `npm run format:check:emails` · `npm run typecheck:emails` · `npm run build:emails` |
+| `flexi-day-emails`  | `npm run format:check:emails` · `npm run typecheck:emails` · `npm run build:emails`    |
+| workspace root      | `npm run check` (prettier · eslint · shellcheck · actionlint · link check)             |
 
 Run the independent ones in parallel (one Bash call each, same block). Notes:
 
@@ -46,7 +47,7 @@ Run the independent ones in parallel (one Bash call each, same block). Notes:
   them. Fix a failure with `npm run format:fe|be|emails`, never by hand.
 
 - **`build:fe` / `build:be` are the typecheck.** The frontend has no `typecheck` script — `next build`
-  does it; the backend's `build` *is* `tsc`. For a fast inner loop only:
+  does it; the backend's `build` _is_ `tsc`. For a fast inner loop only:
   `npm --prefix flexi-day exec -- tsc --noEmit`. The build still has to pass before gate 2.
 - **Backend e2e**: if Postgres is up, also run `npm --prefix flexi-day-be run test:e2e` (uses
   `.env.e2e.test`, self-skips via `test:e2e:check` when no DB). CI runs it, so a failure here is a
@@ -54,7 +55,7 @@ Run the independent ones in parallel (one Bash call each, same block). Notes:
 - **Dependency advisories are not a gate.** No CI runs `npm audit` — it resolves against a live
   advisory feed, so it fails on commits it passed the day before. Dependabot's alerts and security
   PRs cover this instead. Do not add an audit step back into a PR-blocking job.
-- `flexi-day-emails` `build` also *verifies* templates: it fails when a Handlebars `{{token}}` got
+- `flexi-day-emails` `build` also _verifies_ templates: it fails when a Handlebars `{{token}}` got
   URL-encoded or entity-escaped. That failure is real, never a flake.
 
 Fix every failure, then re-run the full gate. Do not proceed with a known-failing check.
@@ -101,7 +102,7 @@ If you find nothing that meets that bar, say "no findings" — do not pad the li
   evidence. Do not silently ignore it.
 - Add or update a test for each real bug the reviewer found — a fix without a test invites the same
   bug back.
-- **Any edit here → return to gate 1** and re-run the whole gate, then gate 2 with a *fresh* agent.
+- **Any edit here → return to gate 1** and re-run the whole gate, then gate 2 with a _fresh_ agent.
 - Cap at **3 review rounds**. If a blocker survives round 3, stop the pipeline and hand the situation
   to the user rather than shipping it or looping forever.
 
@@ -150,8 +151,9 @@ Only after gates 1–5 are green.
    re-stages them as the commit goes through, so the index cannot carry an unformatted file past
    this point. It reports on stderr when it rewrites something — if it does, the working tree
    changed under you, so re-read the file before you describe it in the commit message.
+
 3. **Commit** in the repos' conventional-commit style (`fix: stop the report hiding a leave
-   overdraft`) — subject in the imperative, body explaining *why* when it is not obvious. End every
+overdraft`) — subject in the imperative, body explaining _why_ when it is not obvious. End every
    message with:
    ```
    Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
@@ -173,9 +175,9 @@ Only after gates 1–5 are green.
    🤖 Generated with [Claude Code](https://claude.com/claude-code)
    ```
    Cross-link the PRs in each other's body when a change spans repos, and call out the deploy order
-   (they release independently — a frontend that needs a new endpoint merges *after* the backend).
-6. **The workspace root repo has no remote.** Commit its changes on the branch and say so in the
-   report — there is no PR to open.
+   (they release independently — a frontend that needs a new endpoint merges _after_ the backend).
+6. **The workspace root repo gets a PR like any other.** Its `main` is protected and refuses direct
+   pushes, so branch, push and `gh pr create --repo Daniel88dev/flexi-day-workspace` there too.
 7. Offer, don't auto-run: `gh pr checks <url> --watch` to follow CI.
 
 ## Final report
