@@ -108,5 +108,7 @@ stay complete and current.
 - **Issue tracker** — issues live in each sub-repo's GitHub Issues. The workspace root has no
   remote, so `gh` needs `-R Daniel88dev/<repo>` or must run inside the sub-repo. See
   `docs/agents/issue-tracker.md`.
+- **Triage labels** — the five canonical roles, label string equal to role name, in each sub-repo's
+  GitHub Issues. See `docs/agents/triage-labels.md`.
 - **Domain docs** — a root `CONTEXT-MAP.md` points at per-repo `CONTEXT.md` files; ADRs live in each
   repo's `docs/adr/`, system-wide ones at the workspace root. See `docs/agents/domain.md`.
