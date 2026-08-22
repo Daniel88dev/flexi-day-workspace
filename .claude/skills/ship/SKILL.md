@@ -34,11 +34,16 @@ a different npm major rewrites `package-lock.json` and breaks `npm ci` in CI.
 
 | Repo | Checks (in order) |
 |---|---|
-| `flexi-day` (FE) | `npm run lint:fe` · `npm run test:fe` · `npm run build:fe` |
-| `flexi-day-be` (BE) | `npm run lint:be` · `npm run build:be` · `npm run test:be` |
-| `flexi-day-emails` | `npm run typecheck:emails` · `npm run build:emails` |
+| `flexi-day` (FE) | `npm run format:check:fe` · `npm run lint:fe` · `npm run test:fe` · `npm run build:fe` |
+| `flexi-day-be` (BE) | `npm run format:check:be` · `npm run lint:be` · `npm run build:be` · `npm run test:be` |
+| `flexi-day-emails` | `npm run format:check:emails` · `npm run typecheck:emails` · `npm run build:emails` |
 
 Run the independent ones in parallel (one Bash call each, same block). Notes:
+
+- **`format:check` is a CI gate, and `lint` does not cover it.** `lint` is eslint; prettier is the
+  separate `format:check` job, and it fails the build on its own. The `Write|Edit` hooks format as
+  you go, but a file written through Bash — `sed`, a heredoc, a `python` one-liner — never triggers
+  them. Fix a failure with `npm run format:fe|be|emails`, never by hand.
 
 - **`build:fe` / `build:be` are the typecheck.** The frontend has no `typecheck` script — `next build`
   does it; the backend's `build` *is* `tsc`. For a fast inner loop only:
@@ -140,6 +145,11 @@ Only after gates 1–5 are green.
 2. **Stage deliberately.** Add the files the change actually touches; never blanket `git add -A`.
    Confirm with `git -C <repo> status --porcelain` that no `.env*`, `dist/`, `out/`, coverage output,
    or stray scratch file is staged.
+
+   The `PreToolUse` hook (`tools/hooks/format-staged.sh`) runs prettier over the staged files and
+   re-stages them as the commit goes through, so the index cannot carry an unformatted file past
+   this point. It reports on stderr when it rewrites something — if it does, the working tree
+   changed under you, so re-read the file before you describe it in the commit message.
 3. **Commit** in the repos' conventional-commit style (`fix: stop the report hiding a leave
    overdraft`) — subject in the imperative, body explaining *why* when it is not obvious. End every
    message with:

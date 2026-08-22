@@ -78,6 +78,14 @@ change, run the plan or apply the migration locally, then hand over the exact co
   `flexi-day/.github/workflows/ci.yml`. Adding one there means adding it to that workflow and asking
   the user to set the variable with `gh variable set`.
 
+## Formatting
+
+All three repos run prettier as a CI job of its own (`format:check`), separate from eslint — `lint`
+passing says nothing about formatting. Each repo's `.claude/settings.json` formats on `Write` and
+`Edit`, but **a file written through Bash** — `sed`, a heredoc, a `python` one-liner — **skips that
+hook entirely**. `tools/hooks/format-staged.sh` catches those at commit time and re-stages them; run
+`npm run format:fe|be|emails` from the root if you want it clean before that.
+
 ## Writing style
 
 Apply the `unslop` skill to all prose written for the user, including chat responses, docs, commit
