@@ -16,3 +16,6 @@
 
 # Claude Code local overrides
 .claude/settings.local.json
+
+# Playwright MCP scratch: snapshots, console logs and screenshots from ui-test runs.
+.playwright-mcp/
