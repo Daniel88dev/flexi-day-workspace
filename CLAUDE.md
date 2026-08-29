@@ -97,6 +97,17 @@ change, run the plan or apply the migration locally, then hand over the exact co
   `flexi-day/.github/workflows/ci.yml`. Adding one there means adding it to that workflow and asking
   the user to set the variable with `gh variable set`.
 
+## Branching for feature work
+
+- One feature = one branch per touched repo, named `feat/<feature-slug>` with the same slug in
+  every repo the feature touches.
+- `/to-tickets` records in every ticket it publishes: the feature branch name and which repo(s) the
+  ticket touches.
+- `/implement` never invents a branch. It checks out the branch named in the ticket, creating it
+  from `main` only if it doesn't exist yet in that repo.
+- Each ticket lands as exactly one commit on that branch. Follow-up runs on the same feature reuse
+  the branch — never a second one.
+
 ## Formatting
 
 All four repos run prettier as a CI job of its own (`format:check`), separate from eslint — `lint`
