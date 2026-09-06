@@ -4,3 +4,7 @@ flexi-day
 flexi-day-be
 flexi-day-emails
 todo
+
+# Third-party skills vendored by `npx skills add`; kept byte-identical to upstream so
+# skills-lock.json hashes stay valid and `npx skills update` can overwrite them.
+.agents
