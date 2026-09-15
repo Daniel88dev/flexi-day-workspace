@@ -40,3 +40,37 @@ Create a GitHub issue in the sub-repo the work belongs to (table above).
 ## When a skill says "fetch the relevant ticket"
 
 Run `gh -R Daniel88dev/<repo> issue view <number> --comments`.
+
+## Wayfinding operations
+
+The `wayfinder` skill keeps a map and its tickets as GitHub issues. Cross-cutting efforts (a new
+repo, a feature spanning repos) chart in `Daniel88dev/flexi-day-workspace`; an effort confined to
+one product repo charts there. Every command below takes `-R Daniel88dev/<repo>`.
+
+- **Labels**: `wayfinder:map` on the map; `wayfinder:research`, `wayfinder:prototype`,
+  `wayfinder:grilling`, `wayfinder:task` on tickets. Create them once per repo with
+  `gh label create "wayfinder:<type>"`.
+- **Map**: one issue labelled `wayfinder:map`, body in the skill's template. Convert the original
+  idea issue into the map with `gh issue edit <n> --body-file ... --add-label wayfinder:map`.
+- **Child tickets**: GitHub sub-issues. Create the ticket, then attach it with the GraphQL
+  `addSubIssue` mutation (map issue node id + ticket node id). Node ids come from
+  `gh api graphql -f query='{ repository(owner:"Daniel88dev", name:"<repo>") { issue(number:<n>) { id } } }'`.
+- **Blocking**: GitHub's native dependency relationship, `addBlockedBy(input:{issueId, blockingIssueId})`,
+  so the tracker renders "Blocked by" on the ticket. `removeBlockedBy` undoes it.
+- **Claiming**: `gh issue edit <n> --add-assignee @me`. An open, unassigned ticket is unclaimed.
+- **Frontier query**: open sub-issues of the map with no open blocker and no assignee:
+
+  ```bash
+  gh api graphql -f query='{ repository(owner:"Daniel88dev", name:"<repo>") { issue(number:<map>) {
+    subIssues(first:50) { nodes { number title state assignees(first:1){ totalCount }
+      labels(first:5){ nodes{ name } } blockedBy(first:20){ nodes{ number state } } } } } } }' \
+    --jq '.data.repository.issue.subIssues.nodes[]
+      | select(.state=="OPEN" and .assignees.totalCount==0
+               and ([.blockedBy.nodes[] | select(.state=="OPEN")] | length)==0)
+      | "\(.number) \(.title)"'
+  ```
+
+- **Resolving**: post the answer as a comment headed "Resolution", `gh issue close <n>`, then
+  append one line to the map's "Decisions so far" with `gh issue edit <map> --body-file`.
+- **Out of scope**: `gh issue close <n> --reason "not planned"` and one line in the map's "Out of
+  scope" section.
