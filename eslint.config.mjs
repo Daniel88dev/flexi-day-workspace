@@ -3,7 +3,14 @@ import globals from "globals";
 
 export default [
   {
-    ignores: ["flexi-day/", "flexi-day-be/", "flexi-day-emails/", "todo/", "node_modules/"],
+    ignores: [
+      "flexi-day/",
+      "flexi-day-be/",
+      "flexi-day-emails/",
+      "flexi-day-rn/",
+      "todo/",
+      "node_modules/",
+    ],
   },
   js.configs.recommended,
   {

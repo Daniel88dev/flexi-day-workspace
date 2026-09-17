@@ -40,7 +40,7 @@ tool(
   {
     title: "Flexi Day stack status",
     description:
-      "Reports whether Postgres, the backend API and the frontend dev server are up, and whether the local dev tooling endpoints are live. Call this first when anything seems not to work.",
+      "Reports whether Postgres, the backend API, the frontend dev server and Metro (iPhone dev client) are up, and whether the local dev tooling endpoints are live. Call this first when anything seems not to work.",
     inputSchema: {},
   },
   () => stackStatus()

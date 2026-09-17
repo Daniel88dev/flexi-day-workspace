@@ -16,6 +16,7 @@ const commands = {
     console.log(`${mark(status.postgres.up)} postgres   :${status.postgres.port}`);
     console.log(`${mark(status.backend.up)} backend    ${status.backend.url}`);
     console.log(`${mark(status.frontend.up)} frontend   ${status.frontend.url}`);
+    console.log(`${mark(status.metro.up)} metro      :${status.metro.port} (iPhone dev client)`);
 
     if (!status.devTools.configured) {
       console.log("❌ dev tools  DEV_TOOLS_ENABLED is not true in flexi-day-be/.env");
@@ -79,7 +80,7 @@ const commands = {
 if (!command || !commands[command]) {
   console.log(`Usage: npm run dev:<command>
 
-  status                       what is running, and whether dev tools are live
+  status                       what is running (Postgres, backend, frontend, Metro), and whether dev tools are live
   seed [--email --team ...]    one verified user (+ team, quota)
   scenario [--team --email]    a whole team with quotas and bookings
   login [email]                issue a session cookie for an existing local user
