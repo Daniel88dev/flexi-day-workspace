@@ -3,6 +3,7 @@ package-lock.json
 flexi-day
 flexi-day-be
 flexi-day-emails
+flexi-day-rn
 todo
 
 # Third-party skills vendored by `npx skills add`; kept byte-identical to upstream so

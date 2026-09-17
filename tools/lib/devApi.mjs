@@ -145,13 +145,16 @@ function portOf(rawUrl, fallback) {
   }
 }
 
+const METRO_PORT = 8081;
+
 export async function stackStatus() {
   const dbPort = portOf(devConfig.databaseUrl || "postgres://localhost:5432", 5432);
 
-  const [postgres, backend, frontend] = await Promise.all([
+  const [postgres, backend, frontend, metro] = await Promise.all([
     probeTcp(dbPort),
     probeHttp(`${devConfig.apiUrl}/health`),
     probeTcp(portOf(devConfig.appUrl, 3000)),
+    probeTcp(METRO_PORT),
   ]);
 
   let dev = null;
@@ -168,6 +171,7 @@ export async function stackStatus() {
     postgres: { port: dbPort, up: postgres },
     backend: { url: devConfig.apiUrl, up: backend },
     frontend: { url: devConfig.appUrl, up: frontend },
+    metro: { port: METRO_PORT, up: metro },
     devTools: { configured: devConfig.enabled, status: dev, error: devError },
   };
 }

@@ -10,7 +10,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { dirname, resolve, relative, join } from "node:path";
 
 const ROOT = resolve(dirname(new URL(import.meta.url).pathname), "..");
-const SUB_REPOS = ["flexi-day", "flexi-day-be", "flexi-day-emails", "todo"];
+const SUB_REPOS = ["flexi-day", "flexi-day-be", "flexi-day-emails", "flexi-day-rn", "todo"];
 
 const markdownFiles = execFileSync("git", ["ls-files", "*.md", "**/*.md"], {
   cwd: ROOT,

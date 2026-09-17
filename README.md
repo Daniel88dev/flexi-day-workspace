@@ -1,19 +1,20 @@
 # Flexi Day workspace
 
-The shell that the three Flexi Day repos sit inside. Flexi Day is a vacation and day-off
-management product, and its code lives in three repos that version and deploy on their own
+The shell that the four Flexi Day repos sit inside. Flexi Day is a vacation and day-off
+management product, and its code lives in four repos that version and deploy on their own
 schedules. This repo holds none of that code. It holds the things that only make sense across all
-three: the agent skills, the local dev CLI, an MCP server, and the cross-repo docs.
+all of them: the agent skills, the local dev CLI, an MCP server, and the cross-repo docs.
 
 If you are looking for the product itself, you want one of these:
 
-| Repo                                                                | Role                                      | Stack                                                                                |
-| ------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------ |
-| [flexi-day](https://github.com/Daniel88dev/flexi-day)               | Frontend, a static-export SPA             | Next.js 16 App Router, React 19, Tailwind v4, shadcn/ui, TanStack Query, better-auth |
-| [flexi-day-be](https://github.com/Daniel88dev/flexi-day-be)         | Backend API                               | Express 5 (ESM), Drizzle, PostgreSQL, better-auth, AWS SESv2                         |
-| [flexi-day-emails](https://github.com/Daniel88dev/flexi-day-emails) | Transactional email templates for AWS SES | react-email, AWS SESv2                                                               |
+| Repo                                                                | Role                                      | Stack                                                                                     |
+| ------------------------------------------------------------------- | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [flexi-day](https://github.com/Daniel88dev/flexi-day)               | Frontend, a static-export SPA             | Next.js 16 App Router, React 19, Tailwind v4, shadcn/ui, TanStack Query, better-auth      |
+| [flexi-day-be](https://github.com/Daniel88dev/flexi-day-be)         | Backend API                               | Express 5 (ESM), Drizzle, PostgreSQL, better-auth, AWS SESv2                              |
+| [flexi-day-emails](https://github.com/Daniel88dev/flexi-day-emails) | Transactional email templates for AWS SES | react-email, AWS SESv2                                                                    |
+| [flexi-day-rn](https://github.com/Daniel88dev/flexi-day-rn)         | iPhone app                                | Expo SDK 57, Expo Router, React Native, NativeWind v5, expo-sqlite + Drizzle, better-auth |
 
-## How the three repos are stored here
+## How the four repos are stored here
 
 Clone them **into this checkout**, as siblings, using exactly these directory names:
 
@@ -24,6 +25,7 @@ cd flexi-day-workspace
 git clone https://github.com/Daniel88dev/flexi-day.git
 git clone https://github.com/Daniel88dev/flexi-day-be.git
 git clone https://github.com/Daniel88dev/flexi-day-emails.git
+git clone https://github.com/Daniel88dev/flexi-day-rn.git
 ```
 
 You end up with this:
@@ -33,6 +35,7 @@ flexi-day-workspace/         this repo
 ├── flexi-day/               separate clone, gitignored here
 ├── flexi-day-be/            separate clone, gitignored here
 ├── flexi-day-emails/        separate clone, gitignored here
+├── flexi-day-rn/            separate clone, gitignored here
 ├── .claude/                 agent skills and settings
 ├── docs/agents/             how agents should use the trackers and docs
 ├── tools/                   dev CLI, MCP server, commit hook
@@ -42,11 +45,11 @@ flexi-day-workspace/         this repo
 The names matter. Every script here delegates with `npm --prefix ./flexi-day-be`, and the dev
 tooling reads `flexi-day-be/.env` by path, so a clone named anything else breaks both.
 
-The three directories are gitignored. This repo never versions their contents, and running
+The four directories are gitignored. This repo never versions their contents, and running
 `git add -A` here cannot swallow them by accident.
 
 **They are not submodules, on purpose.** A submodule pins a commit, and pinning is the opposite of
-what this project wants. The three repos release independently, and a frontend that needs a new
+what this project wants. The four repos release independently, and a frontend that needs a new
 endpoint merges after the backend rather than in lockstep with it. Plain clones let each one sit on
 whatever branch its work needs.
 
@@ -59,7 +62,7 @@ rejects, and `npm ci` then fails in CI before a single check runs.
 ```bash
 nvm use          # or: fnm use
 npm install      # this repo's own tooling
-npm run install:all   # dependencies for all three clones
+npm run install:all   # dependencies for all four clones
 ```
 
 The backend needs PostgreSQL on port 5432 with a `flexi-day` database. Its `DATABASE` URL carries
@@ -74,13 +77,13 @@ Run one at a time, or override the port.
 
 Run these from this directory. They reach into the clones for you.
 
-| Command                                             | What it does                                                            |
-| --------------------------------------------------- | ----------------------------------------------------------------------- |
-| `npm run stack:status`                              | reports what is currently up: Postgres, backend, frontend, dev tooling  |
-| `npm run dev:be` / `dev:fe` / `dev:emails`          | start one dev server                                                    |
-| `npm run db:up` / `db:down`                         | start or stop the Postgres container                                    |
-| `npm run check`                                     | this repo's own checks: prettier, eslint, links, shellcheck, actionlint |
-| `npm run format:fe` / `format:be` / `format:emails` | run prettier inside a clone                                             |
+| Command                                                           | What it does                                                                  |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `npm run stack:status`                                            | reports what is currently up: Postgres, backend, frontend, Metro, dev tooling |
+| `npm run dev:be` / `dev:fe` / `dev:emails` / `dev:rn`             | start one dev server (`dev:rn` is Metro; the iPhone build runs through Xcode) |
+| `npm run db:up` / `db:down`                                       | start or stop the Postgres container                                          |
+| `npm run check`                                                   | this repo's own checks: prettier, eslint, links, shellcheck, actionlint       |
+| `npm run format:fe` / `format:be` / `format:emails` / `format:rn` | run prettier inside a clone                                                   |
 
 Signing up normally requires email verification through SES, which does nothing on a laptop. So
 seeding and signing in go through a dev-only surface instead of hand-written `curl` and `psql`:
@@ -105,11 +108,11 @@ operations as agent tools, and `hooks/format-staged.sh`, which runs prettier ove
 commit time. That hook exists because a file written through Bash, by `sed` or a heredoc, skips the
 editor's format-on-write and would otherwise reach CI unformatted.
 
-**`.claude/`.** Skills shared across all three repos: `ship` for the pre-merge pipeline, `ui-test`
+**`.claude/`.** Skills shared across all four repos: `ship` for the pre-merge pipeline, `ui-test`
 for driving the real browser, `dev-up` for the startup sequence, `unslop` for prose.
 
 **`docs/agents/`.** Where issues live, the triage label vocabulary, and how domain docs and ADRs are
-laid out across four repos.
+laid out across five repos.
 
 **`CLAUDE.md`.** Conventions that span repos. Each clone carries its own `CLAUDE.md` for its own.
 

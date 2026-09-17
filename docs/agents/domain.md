@@ -3,7 +3,7 @@
 How the engineering skills should consume this workspace's domain documentation when exploring
 the codebase.
 
-**Layout: multi-context.** The workspace holds three independently versioned repos, so domain
+**Layout: multi-context.** The workspace holds four independently versioned repos, so domain
 docs live per-repo, with a map at the workspace root.
 
 ## Before exploring, read these
@@ -30,7 +30,10 @@ actually get resolved.
 ├── flexi-day-be/
 │   ├── CONTEXT.md
 │   └── docs/adr/
-└── flexi-day-emails/
+├── flexi-day-emails/
+│   ├── CONTEXT.md
+│   └── docs/adr/
+└── flexi-day-rn/
     ├── CONTEXT.md
     └── docs/adr/
 ```

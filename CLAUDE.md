@@ -4,19 +4,20 @@
 
 This root directory is its own git repository — `Daniel88dev/flexi-day-workspace`, public. It
 versions only the cross-cutting files (`CLAUDE.md`, `.claude/`, `docs/`, `tools/`, `package.json`)
-and holds three independent repos that make up the Flexi Day vacation/day-off management product,
+and holds four independent repos that make up the Flexi Day vacation/day-off management product,
 each with its own remote, `package.json`, CI, `CLAUDE.md` and `.claude/`:
 
-| Directory           | Role                                    | Stack                                                                                |
-| ------------------- | --------------------------------------- | ------------------------------------------------------------------------------------ |
-| `flexi-day/`        | Frontend (static-export SPA)            | Next.js 16 App Router, React 19, Tailwind v4, shadcn/ui, TanStack Query, better-auth |
-| `flexi-day-be/`     | Backend API                             | Express 5 (ESM), Drizzle + PostgreSQL, better-auth, AWS SESv2                        |
-| `flexi-day-emails/` | Transactional email templates → AWS SES | react-email, AWS SESv2                                                               |
+| Directory           | Role                                    | Stack                                                                                     |
+| ------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `flexi-day/`        | Frontend (static-export SPA)            | Next.js 16 App Router, React 19, Tailwind v4, shadcn/ui, TanStack Query, better-auth      |
+| `flexi-day-be/`     | Backend API                             | Express 5 (ESM), Drizzle + PostgreSQL, better-auth, AWS SESv2                             |
+| `flexi-day-emails/` | Transactional email templates → AWS SES | react-email, AWS SESv2                                                                    |
+| `flexi-day-rn/`     | iPhone app (Expo dev client)            | Expo SDK 57, Expo Router, React Native, NativeWind v5, expo-sqlite + Drizzle, better-auth |
 
 Each sub-repo's `CLAUDE.md` carries its own conventions and gotchas, and loads when you work in it.
 This file covers only what spans repos.
 
-The three sub-directories are separate clones, gitignored here — this repo never versions their
+The four sub-directories are separate clones, gitignored here — this repo never versions their
 contents. `todo/` is gitignored too: it holds working notes that stay on the machine.
 
 ## Changing this repo
@@ -37,6 +38,8 @@ CI runs prettier, eslint, shellcheck, actionlint and a relative-link check on ev
 ## How the repos connect
 
 - Frontend → backend over HTTP via `NEXT_PUBLIC_API_URL` (local: `http://localhost:8080`).
+- iPhone app → the same backend, through better-auth's `expo` plugin and a native session; a local
+  store (expo-sqlite) mirrors what the user can see on the web. See `flexi-day-rn/CONTEXT.md`.
 - Backend → SES: sends templates named `flexi-day-{template}-{dev,prod}` (region `eu-central-1`)
   produced by `flexi-day-emails`. See `flexi-day-emails/INTEGRATION.md`.
 - The repos version and deploy independently; there is no shared lockstep release.
@@ -51,6 +54,8 @@ user or password, so it connects as the OS user via trust auth — a native Post
 database works as is, otherwise `npm run db:up` starts a `flexi-day-pg` container configured for it.
 
 `npm run dev:emails` binds `:3000` like the frontend, so run one at a time or override the port.
+`npm run dev:rn` starts Metro on `:8081` for the iPhone dev client; the native build itself goes
+through Xcode from inside `flexi-day-rn/`.
 
 ## Seeding and signing in locally
 
@@ -74,7 +79,7 @@ The surface exists only on a dev machine, gated five ways, and stays that way �
 
 ## Node version
 
-All three repos pin Node 24 in their own `.nvmrc` (CI reads it via `node-version-file`). Use the
+All four repos pin Node 24 in their own `.nvmrc` (CI reads it via `node-version-file`). Use the
 matching Node locally: installing with a different npm major rewrites `package-lock.json` into a
 form the other rejects, and `npm ci` then fails before any CI step runs.
 
@@ -110,14 +115,14 @@ change, run the plan or apply the migration locally, then hand over the exact co
 
 ## Formatting
 
-All four repos run prettier as a CI job of its own (`format:check`), separate from eslint — `lint`
+All five repos run prettier as a CI job of its own (`format:check`), separate from eslint — `lint`
 passing says nothing about formatting. Each repo's `.claude/settings.json` formats on `Write` and
 `Edit`, but **a file written through Bash** — `sed`, a heredoc, a `python` one-liner — **skips that
 hook entirely**. `tools/hooks/format-staged.sh` catches those at commit time and re-stages them; run
 `npm run format:fe|be|emails` from the root, or `npm run format` for the workspace repo's own files,
 if you want it clean before that.
 
-All four use the same prettier settings (`printWidth` 100), so a file formats identically wherever
+All five use the same prettier settings (`printWidth` 100), so a file formats identically wherever
 the shared tooling touches it.
 
 ## Writing style
