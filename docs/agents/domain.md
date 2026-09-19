@@ -8,24 +8,24 @@ docs live per-repo, with a map at the workspace root.
 
 ## Before exploring, read these
 
-- **`CONTEXT-MAP.md`** at the workspace root, if it exists — it points at one `CONTEXT.md` per
-  sub-repo. Read each one relevant to the topic.
+- **`CONTEXT-MAP.md`** at the workspace root. It names the four contexts, says which of them have
+  a `CONTEXT.md` yet, and how they talk to each other. Read the ones relevant to the topic.
 - **`<sub-repo>/CONTEXT.md`** — the glossary and boundaries for that repo's context.
 - **`docs/adr/`** at the workspace root for system-wide decisions, and **`<sub-repo>/docs/adr/`**
   for decisions scoped to one repo.
 
-If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest
-creating them upfront. The `/domain-modeling` skill creates them lazily when terms or decisions
-actually get resolved.
+Only `flexi-day-be` and `flexi-day-rn` have a `CONTEXT.md` so far. Where one is missing,
+**proceed silently**. Don't flag the absence; don't suggest creating the file upfront. The
+`/domain-modeling` skill writes it when that repo resolves a term of its own.
 
 ## File structure
 
 ```text
 /                                      ← workspace root repo (flexi-day-workspace)
-├── CONTEXT-MAP.md                     ← created lazily; points at per-repo contexts
+├── CONTEXT-MAP.md                     ← the index; points at per-repo contexts
 ├── docs/adr/                          ← system-wide decisions (cross-repo contracts, deploy topology)
 ├── flexi-day/
-│   ├── CONTEXT.md
+│   ├── CONTEXT.md                     ← written lazily, like every per-repo file here
 │   └── docs/adr/                      ← frontend-scoped decisions (travel with the repo to GitHub)
 ├── flexi-day-be/
 │   ├── CONTEXT.md
