@@ -113,6 +113,13 @@ change, run the plan or apply the migration locally, then hand over the exact co
 - Each ticket lands as exactly one commit on that branch. Follow-up runs on the same feature reuse
   the branch — never a second one.
 
+## Merging pull requests
+
+Never merge a PR yourself — no `gh pr merge`, no merge button, no auto-merge — unless the user
+asks for that merge outright. This holds here and in all four sub-repos. Push the branch, open the
+PR, report CI, and stop. Opening a PR is not permission to merge it, and one merge the user asked
+for does not carry to the next.
+
 ## Formatting
 
 All five repos run prettier as a CI job of its own (`format:check`), separate from eslint — `lint`
