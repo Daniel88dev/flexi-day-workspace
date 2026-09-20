@@ -45,6 +45,26 @@ ordinary warning drift, which is why `@eslint-react` gets its own Dependabot gro
 riding the weekly minor-and-patch bundle. `flexi-day-be` needed none of this and reached ESLint 10
 without incident, because it has no React plugins — which is the whole diagnosis.
 
+Curation settled at `strict` (Daniel88dev/flexi-day#151). The swap itself held the rule set still
+at `recommended` so that a red CI had one cause rather than two, and the tier was decided
+afterwards on its own findings: `strict` adds eight rules and raises `jsx-no-children-prop` to
+error, of which two fire and are fixed rather than suppressed. The six that fire nowhere are kept
+anyway, because a guard costs least to install before the API it guards is in use — and the line
+stops at the preset boundary. Every category preset `@eslint-react` ships — naming-convention,
+web-api, dom, jsx, rsc, x — is a subset of `strict`, so the only thing left to adopt is what
+`configs.all` holds beyond it, and those rules are all-only: upstream left them out of every
+curated preset, so taking them on future cost would rest on no judgement but ours. Firing count is
+not the criterion either, and saying so matters because it reads like one —
+`no-missing-context-display-name` has live findings here and is excluded all the same, while four
+of the six rules kept from `strict` have none. Warnings became load-bearing in the same change:
+`lint` was bare `eslint`, so warn-level rules never reddened CI and every "no warnings" claim to
+that point rested on somebody reading the output. It runs `--max-warnings 0` now. The
+hand-maintained suppression list was re-derived against `@eslint-react` 5.20.0 at the same time and
+had not drifted — twelve entries, nine active, the same three inactive. Those three were written
+out when only nine were needed, and the audit found `@eslint-react/globals` would fire twice today
+if upstream ever promoted it, so the belt-and-braces entries are doing work rather than decorating
+the block.
+
 ## What would reverse this
 
 `eslint-config-next` shipping a rule set materially better curated than ours, enough to make
@@ -52,4 +72,6 @@ re-inheriting it worth the stale transitive pins again. The bundle merely gainin
 ESLint-10-compatible `eslint-plugin-react` range is not itself a reason: the position here is that
 composing directly is preferable regardless of whether the blocker is present. Or
 `@eslint-react` becoming unmaintained in its turn, which would return us to the same fork with one
-fewer option on the table.
+fewer option on the table. The tier is the softer half of this and moves on its own evidence: a
+`strict` rule that starts firing often enough to be argued with each time is a reason to carve that
+rule out, not to drop back to `recommended`.
