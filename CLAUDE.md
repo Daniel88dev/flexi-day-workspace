@@ -151,10 +151,10 @@ stay complete and current.
 
 ## Agent skills
 
-- **Issue tracker** — issues live in each sub-repo's GitHub Issues. A bare `gh` run from the
-  workspace root now resolves to `flexi-day-workspace`, so product issues need an explicit
-  `-R Daniel88dev/<repo>` or must run inside the sub-repo. See `docs/agents/issue-tracker.md`.
-- **Triage labels** — the five canonical roles, label string equal to role name, in each sub-repo's
-  GitHub Issues. See `docs/agents/triage-labels.md`.
+- **Issue tracker** — agent work lives in fenro tasks (`T-12`) through the `fenro-prod` MCP server,
+  each task's `repository` naming its repo. GitHub Issues stay for external reports and are
+  attached to a task as its source. See `docs/agents/issue-tracker.md`.
+- **Triage labels** — the five canonical roles as fenro labels, each paired with a status so only
+  `ready-for-agent` tasks reach the ready queue. See `docs/agents/triage-labels.md`.
 - **Domain docs** — a root `CONTEXT-MAP.md` points at per-repo `CONTEXT.md` files; ADRs live in each
   repo's `docs/adr/`, system-wide ones at the workspace root. See `docs/agents/domain.md`.

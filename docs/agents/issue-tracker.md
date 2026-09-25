@@ -1,76 +1,89 @@
-# Issue tracker: GitHub, per sub-repo
+# Issue tracker: fenro tasks, GitHub Issues linked
 
-Issues and specs live in each sub-repo's GitHub Issues. The workspace root is itself a repo
-(`Daniel88dev/flexi-day-workspace`), so a bare `gh` command run from here resolves to **the
-workspace repo, not the product repos** — a product issue filed that way lands in the wrong
-tracker. Every `gh` command must run inside the relevant sub-repo directory or pass `-R`
-explicitly:
+Agent work lives in **fenro**, reached through the `fenro-prod` MCP server (registered at user
+scope, so it loads in the workspace root and in every sub-repo). Its tools show up as
+`mcp__fenro-prod__<tool>`. Tasks are named by key, like `T-12`; always say `T-12`, never a bare
+number.
 
-| Work touching                                            | Repo for the issue                                                         |
-| -------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `flexi-day/` (frontend)                                  | `Daniel88dev/flexi-day`                                                    |
-| `flexi-day-be/` (backend API)                            | `Daniel88dev/flexi-day-be`                                                 |
-| `flexi-day-emails/` (email templates)                    | `Daniel88dev/flexi-day-emails`                                             |
-| Cross-cutting                                            | The repo the work _mostly_ touches; cross-reference the others in the body |
-| Workspace tooling (`tools/`, `.claude/`, `docs/agents/`) | `Daniel88dev/flexi-day-workspace`                                          |
+GitHub Issues stay open to the public and to external reporters. When a task starts from a GitHub
+issue, attach the issue to the task as its source; fenro never syncs with GitHub, so read the issue
+itself with `gh`. Pull requests stay on GitHub.
+
+## Which repository a task belongs to
+
+Every task carries `repository`, set to the repo the work belongs to. Sub-tasks inherit it from
+their parent.
+
+| Work touching                                            | `repository`                                                           |
+| -------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `flexi-day/` (frontend)                                  | `Daniel88dev/flexi-day`                                                |
+| `flexi-day-be/` (backend API)                            | `Daniel88dev/flexi-day-be`                                             |
+| `flexi-day-emails/` (email templates)                    | `Daniel88dev/flexi-day-emails`                                         |
+| `flexi-day-rn/` (iPhone app)                             | `Daniel88dev/flexi-day-rn`                                             |
+| Cross-cutting                                            | The repo the work _mostly_ touches; name the others in the description |
+| Workspace tooling (`tools/`, `.claude/`, `docs/agents/`) | `Daniel88dev/flexi-day-workspace`                                      |
 
 ## Conventions
 
-- **Create an issue**: `gh -R Daniel88dev/<repo> issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.
-- **Read an issue**: `gh -R Daniel88dev/<repo> issue view <number> --comments` to read it yourself.
-  To feed it to a filter, `gh -R Daniel88dev/<repo> issue view <number> --json title,body,labels,comments --jq '{title, body, labels: [.labels[].name], comments: [.comments[].body]}'`
-  — `--comments` renders text, so `--jq` needs `--json` to have anything to match against.
-- **List issues**: `gh -R Daniel88dev/<repo> issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters.
-- **Comment on an issue**: `gh -R Daniel88dev/<repo> issue comment <number> --body "..."`
-- **Apply / remove labels**: `gh -R Daniel88dev/<repo> issue edit <number> --add-label "..."` / `--remove-label "..."`
-- **Close**: `gh -R Daniel88dev/<repo> issue close <number> --comment "..."`
+- **Create a task**: `save_task` with `title`, `description`, `repository`, `labels`, and one
+  `add_criteria` entry per acceptance criterion. Don't write criteria as a checklist in the
+  description. `status` is `todo` by default; pass `backlog` for anything not yet triaged.
+- **From a GitHub issue**: `save_task` with
+  `attach: [{ url: "https://github.com/Daniel88dev/<repo>/issues/<n>", is_source: true }]`.
+- **Read a task**: `get_task` with `task: "T-12"` returns the full brief: description, criteria,
+  blockers, sub-tasks, the latest handoff, decisions and recent journal.
+- **List tasks**: `list_tasks` with `repository`, `labels`, `status`, `parent` or `text` filters.
+  `ready: true` returns the queue an agent picks from: `todo`, unblocked, unclaimed, and no open
+  sub-tasks.
+- **Comment**: `add_note` with `kind` set to `note`, `decision`, `discovery` or `question`. The
+  journal is append-only, so a correction is a new note.
+- **Labels**: `save_task` with `add_labels` / `remove_labels`. Reuse names from `list_labels`
+  before inventing new ones.
+- **Block**: `blocked_by` on create, or `link_tasks` with `kind: "blocked_by"` afterwards.
+- **Work a task**: `start_task` claims it and returns the brief. Then `add_note` as you go,
+  `check_criterion` with evidence for each criterion, and `finish_session` with a handoff summary
+  and an outcome: `done`, `in_review` (a PR is open and waits on the user), `paused`, `blocked`
+  (with a `reason`) or `released`. The claim lapses after two hours without a call.
+- **Found other work mid-task**: file it with `save_task` and `discovered_from` rather than doing
+  it now.
+- **Close without a session**: `set_status` with `done` or `cancelled`. A task can't be `done` while
+  it has open sub-tasks or unchecked criteria.
 
-When already working inside a sub-repo directory, plain `gh issue ...` works — `gh` infers the
-repo from that clone's remote. A bare issue number is ambiguous across the four repos; always
-name the repo when referencing an issue in prose (e.g. `flexi-day-be#12`).
+Descriptions, notes and summaries are GitHub-flavoured Markdown, rendered for the user on the task
+page.
 
 ## Pull requests as a triage surface
 
-**PRs as a request surface: no.** _(Set to `yes` if a repo treats external PRs as feature requests; `/triage` reads this flag.)_
+**PRs as a request surface: no.** _(Set to `yes` if a repo treats external PRs as feature
+requests; `/triage` reads this flag.)_
 
 ## When a skill says "publish to the issue tracker"
 
-Create a GitHub issue in the sub-repo the work belongs to (table above).
+Create a fenro task with `save_task` and set `repository` from the table above. For several
+tickets, create them in dependency order so each `blocked_by` can name keys that already exist.
 
 ## When a skill says "fetch the relevant ticket"
 
-Run `gh -R Daniel88dev/<repo> issue view <number> --comments`.
+`get_task` with the key. If the user hands you a GitHub issue URL or `repo#n` instead, look for a
+task that already has it attached (`list_tasks` with `text`), and read the issue itself with
+`gh -R Daniel88dev/<repo> issue view <n> --comments`.
 
 ## Wayfinding operations
 
-The `wayfinder` skill keeps a map and its tickets as GitHub issues. Cross-cutting efforts (a new
-repo, a feature spanning repos) chart in `Daniel88dev/flexi-day-workspace`; an effort confined to
-one product repo charts there. Every command below takes `-R Daniel88dev/<repo>`.
+Used by `/wayfinder`. The map is a parent task and its tickets are sub-tasks.
 
 - **Labels**: `wayfinder:map` on the map; `wayfinder:research`, `wayfinder:prototype`,
-  `wayfinder:grilling`, `wayfinder:task` on tickets. Create them once per repo with
-  `gh label create "wayfinder:<type>"`.
-- **Map**: one issue labelled `wayfinder:map`, body in the skill's template. Convert the original
-  idea issue into the map with `gh issue edit <n> --body-file ... --add-label wayfinder:map`.
-- **Child tickets**: GitHub sub-issues. Create the ticket, then attach it with the GraphQL
-  `addSubIssue` mutation (map issue node id + ticket node id). Node ids come from
-  `gh api graphql -f query='{ repository(owner:"Daniel88dev", name:"<repo>") { issue(number:<n>) { id } } }'`.
-- **Blocking**: GitHub's native dependency relationship, `addBlockedBy(input:{issueId, blockingIssueId})`,
-  so the tracker renders "Blocked by" on the ticket. `removeBlockedBy` undoes it.
-- **Claiming**: `gh issue edit <n> --add-assignee @me`. An open, unassigned ticket is unclaimed.
-- **Frontier query**: open sub-issues of the map with no open blocker and no assignee:
-
-  ```bash
-  gh api graphql -f query='{ repository(owner:"Daniel88dev", name:"<repo>") { issue(number:<map>) {
-    subIssues(first:50) { nodes { number title state assignees(first:1){ totalCount }
-      labels(first:5){ nodes{ name } } blockedBy(first:20){ nodes{ number state } } } } } } }' \
-    --jq '.data.repository.issue.subIssues.nodes[]
-      | select(.state=="OPEN" and .assignees.totalCount==0
-               and ([.blockedBy.nodes[] | select(.state=="OPEN")] | length)==0)
-      | "\(.number) \(.title)"'
-  ```
-
-- **Resolving**: post the answer as a comment headed "Resolution", `gh issue close <n>`, then
-  append one line to the map's "Decisions so far" with `gh issue edit <map> --body-file`.
-- **Out of scope**: `gh issue close <n> --reason "not planned"` and one line in the map's "Out of
-  scope" section.
+  `wayfinder:grilling`, `wayfinder:task` on tickets. `save_task` creates any that don't exist yet.
+- **Map**: one task labelled `wayfinder:map`, with the skill's template (Notes / Decisions so far /
+  Not yet specified) as its description, and `repository` set as in the table above.
+- **Child tickets**: `save_task` with `parent` set to the map's key.
+- **Blocking**: `blocked_by` on create, or `link_tasks` with `kind: "blocked_by"`. fenro rejects
+  cycles.
+- **Claiming**: `start_task` with the ticket's key. A ticket with a live session is claimed; one
+  without is not.
+- **Frontier**: `list_tasks` with `parent` set to the map's key and `ready: true`.
+- **Resolving**: `add_note` with `kind: "decision"`, text headed "Resolution", then
+  `finish_session` with `outcome: "done"`. Then append one line to the map's "Decisions so far" by
+  rewriting its description with `save_task`.
+- **Out of scope**: `set_status` with `cancelled`, an `add_note` saying why, and one line in the
+  map's "Out of scope" section.
