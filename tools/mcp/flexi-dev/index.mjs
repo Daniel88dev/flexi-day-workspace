@@ -9,6 +9,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { devApi, devConfig, signInUrlFor, stackStatus } from "../../lib/devApi.mjs";
+import { signInOnSimulator } from "../../lib/simulator.mjs";
 
 const server = new McpServer({ name: "flexi-dev", version: "1.0.0" });
 
@@ -104,6 +105,32 @@ tool(
       cookieInjection: `document.cookie = ${JSON.stringify(`${result.cookieHeader}; path=/`)}`,
     };
   }
+);
+
+tool(
+  "dev_login_rn",
+  {
+    title: "Sign a local user into the iPhone app",
+    description:
+      "Mints a single-use, 60-second dev sign-in ticket and opens flexiday://dev-sign-in on a booted simulator with xcrun simctl openurl. The app drops any previous session and lands signed in on `to`. Fails when dev tools are off, the user is unknown, no simulator is booted, or several are booted and no udid is given. The Flexi Day dev client should already be running and connected to Metro: a cold start has to finish inside the ticket's 60 seconds, so the result carries a warning when the app was not running and the sign-in may fail.",
+    inputSchema: {
+      email: z.string().optional().describe(`defaults to owner@${devConfig.seedDomain}`),
+      to: z
+        .string()
+        .optional()
+        .describe("in-app path to land on, e.g. /requests; defaults to /dashboard"),
+      udid: z
+        .string()
+        .optional()
+        .describe("simulator udid; required when more than one simulator is booted"),
+    },
+  },
+  (args) =>
+    signInOnSimulator({
+      email: args.email ?? `owner@${devConfig.seedDomain}`,
+      to: args.to,
+      udid: args.udid,
+    })
 );
 
 tool(
