@@ -47,6 +47,7 @@
     "dev:seed": "node tools/dev-cli.mjs seed",
     "dev:scenario": "node tools/dev-cli.mjs scenario",
     "dev:login": "node tools/dev-cli.mjs login",
+    "dev:login:rn": "node tools/dev-cli.mjs login:rn",
     "dev:reset": "node tools/dev-cli.mjs reset"
   },
   "devDependencies": {

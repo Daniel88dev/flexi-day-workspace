@@ -1,12 +1,23 @@
 #!/usr/bin/env node
 import { devApi, devConfig, signInUrlFor, stackStatus } from "./lib/devApi.mjs";
+import { signInOnSimulator } from "./lib/simulator.mjs";
 
 const [command, ...rest] = process.argv.slice(2);
 
 const flag = (name) => {
+  const inline = rest.find((arg) => arg.startsWith(`--${name}=`));
+  if (inline) return inline.slice(name.length + 3);
+
   const index = rest.indexOf(`--${name}`);
-  return index === -1 ? undefined : rest[index + 1];
+  if (index === -1) return undefined;
+  const value = rest[index + 1];
+  if (value === undefined || value.startsWith("--")) throw new Error(`--${name} needs a value.`);
+  return value;
 };
+
+const takesValue = (arg) => arg?.startsWith("--") && arg !== "--" && !arg.includes("=");
+
+const positional = () => rest.find((arg, i) => !arg.startsWith("--") && !takesValue(rest[i - 1]));
 
 const mark = (ok) => (ok ? "✅" : "❌");
 
@@ -71,6 +82,20 @@ const commands = {
     console.log(`curl    curl -H 'Cookie: ${result.cookieHeader}' ${devConfig.apiUrl}/api/group`);
   },
 
+  async "login:rn"() {
+    const result = await signInOnSimulator({
+      email: positional() ?? `owner@${devConfig.seedDomain}`,
+      to: flag("to"),
+      udid: flag("udid"),
+    });
+    const sim = result.simulator;
+    console.log(`user       ${result.user.name} <${result.user.email}>`);
+    console.log(`simulator  ${sim.name} (${sim.runtime}) ${sim.udid}`);
+    console.log(`lands on   ${result.to}`);
+    console.log(`expires    ${result.expiresAt} (the app must redeem the ticket by then)`);
+    if (result.warning) console.log(`⚠️  ${result.warning}`);
+  },
+
   async reset() {
     const result = await devApi("/reset", {});
     console.log(`deleted ${result.deleted.users} users and ${result.deleted.groups} teams`);
@@ -84,6 +109,8 @@ if (!command || !commands[command]) {
   seed [--email --team ...]    one verified user (+ team, quota)
   scenario [--team --email]    a whole team with quotas and bookings
   login [email]                issue a session cookie for an existing local user
+  login:rn [email] [--to /path] [--udid <udid>]
+                               sign a local user into the iPhone app on a booted simulator
   reset                        delete every @${devConfig.seedDomain} account and its data
 `);
   process.exit(command ? 1 : 0);

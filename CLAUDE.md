@@ -62,20 +62,23 @@ through Xcode from inside `flexi-day-rn/`.
 Sign-up requires email verification through SES, which does nothing locally, so seeding and sign-in
 go through a gated dev surface rather than manual `curl` + `psql`:
 
-| Command                     | Effect                                                                                          |
-| --------------------------- | ----------------------------------------------------------------------------------------------- |
-| `npm run dev:scenario`      | seeds `owner@dev.local` (manager + approver), three members, quotas and bookings in every state |
-| `npm run dev:seed`          | one verified user, optionally with a team                                                       |
-| `npm run dev:login <email>` | issues a signed session cookie for API calls                                                    |
-| `npm run dev:reset`         | deletes every `@dev.local` account and its data, nothing else                                   |
+| Command                           | Effect                                                                                          |
+| --------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `npm run dev:scenario`            | seeds `owner@dev.local` (manager + approver), three members, quotas and bookings in every state |
+| `npm run dev:seed`                | one verified user, optionally with a team                                                       |
+| `npm run dev:login <email>`       | issues a signed session cookie for API calls                                                    |
+| `npm run dev:login:rn -- <email>` | signs the user into the iPhone app on the simulator; `--to /path`, `--udid <udid>`              |
+| `npm run dev:reset`               | deletes every `@dev.local` account and its data, nothing else                                   |
 
 `http://localhost:3000/dev-sign-in/?email=owner@dev.local` then lands on the dashboard already
 authenticated. The `flexi-dev` MCP server (`.mcp.json`, `tools/mcp/flexi-dev/`) exposes the same
 operations as tools, and the `ui-test` skill is the full loop for exercising a feature in the
-browser.
+browser or on the simulator.
 
-The surface exists only on a dev machine, gated five ways, and stays that way —
-`flexi-day-be/docs/invariants.md` has the enforcement.
+The surface exists only on a dev machine, gated five ways, and stays that way. The one exception is
+the endpoint where the iPhone app redeems its sign-in ticket: it keeps three of the gates and skips
+the loopback and token checks, because the simulator reaches the backend over the LAN and the app
+must never hold the token. `flexi-day-be/docs/invariants.md` has the enforcement and the reasoning.
 
 ## Node version
 
