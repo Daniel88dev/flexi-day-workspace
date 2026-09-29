@@ -4,8 +4,9 @@
 
 This root directory is its own git repository — `Daniel88dev/flexi-day-workspace`, public. It
 versions only the cross-cutting files (`CLAUDE.md`, `.claude/`, `docs/`, `tools/`, `package.json`)
-and holds four independent repos that make up the Flexi Day vacation/day-off management product,
-each with its own remote, `package.json`, CI, `CLAUDE.md` and `.claude/`:
+plus `showreel/`, the flexiday motion reel built as code, and holds four independent repos that
+make up the Flexi Day vacation/day-off management product, each with its own remote,
+`package.json`, CI, `CLAUDE.md` and `.claude/`:
 
 | Directory           | Role                                    | Stack                                                                                     |
 | ------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------- |

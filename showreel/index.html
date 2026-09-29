@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>flexiday — motion reel</title>
+    <style>
+      @font-face {
+        font-family: "Bricolage";
+        src: url(node_modules/@expo-google-fonts/bricolage-grotesque/500Medium/BricolageGrotesque_500Medium.ttf);
+        font-weight: 500;
+      }
+      @font-face {
+        font-family: "Bricolage";
+        src: url(node_modules/@expo-google-fonts/bricolage-grotesque/600SemiBold/BricolageGrotesque_600SemiBold.ttf);
+        font-weight: 600;
+      }
+      @font-face {
+        font-family: "Bricolage";
+        src: url(node_modules/@expo-google-fonts/bricolage-grotesque/700Bold/BricolageGrotesque_700Bold.ttf);
+        font-weight: 700;
+      }
+      @font-face {
+        font-family: "Bricolage";
+        src: url(node_modules/@expo-google-fonts/bricolage-grotesque/800ExtraBold/BricolageGrotesque_800ExtraBold.ttf);
+        font-weight: 800;
+      }
+      @font-face {
+        font-family: "Hanken";
+        src: url(node_modules/@expo-google-fonts/hanken-grotesk/400Regular/HankenGrotesk_400Regular.ttf);
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: "Hanken";
+        src: url(node_modules/@expo-google-fonts/hanken-grotesk/500Medium/HankenGrotesk_500Medium.ttf);
+        font-weight: 500;
+      }
+      @font-face {
+        font-family: "Hanken";
+        src: url(node_modules/@expo-google-fonts/hanken-grotesk/600SemiBold/HankenGrotesk_600SemiBold.ttf);
+        font-weight: 600;
+      }
+      @font-face {
+        font-family: "Hanken";
+        src: url(node_modules/@expo-google-fonts/hanken-grotesk/700Bold/HankenGrotesk_700Bold.ttf);
+        font-weight: 700 900;
+      }
+      @font-face {
+        font-family: "Instrument";
+        src: url(node_modules/@expo-google-fonts/instrument-serif/400Regular/InstrumentSerif_400Regular.ttf);
+        font-weight: 400;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: "Instrument";
+        src: url(node_modules/@expo-google-fonts/instrument-serif/400Regular_Italic/InstrumentSerif_400Regular_Italic.ttf);
+        font-weight: 400;
+        font-style: italic;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        background: #0c0c16;
+        overflow: hidden;
+      }
+      #stage {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        font-family: "Hanken", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: geometricPrecision;
+        transform-origin: 0 0;
+      }
+      #stage * {
+        box-sizing: border-box;
+      }
+      #hud {
+        position: fixed;
+        right: 12px;
+        bottom: 10px;
+        font:
+          600 12px ui-monospace,
+          monospace;
+        color: #9086f9;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <div id="hud"></div>
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>

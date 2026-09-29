@@ -39,6 +39,7 @@ flexi-day-workspace/         this repo
 ├── .claude/                 agent skills and settings
 ├── docs/agents/             how agents should use the trackers and docs
 ├── tools/                   dev CLI, MCP server, commit hook
+├── showreel/                the 15-second flexiday motion reel, built as code
 └── package.json             scripts that delegate into each clone
 ```
 
@@ -113,6 +114,11 @@ for driving the real browser, `dev-up` for the startup sequence, `unslop` for pr
 
 **`docs/agents/`.** Where issues live, the triage label vocabulary, and how domain docs and ADRs are
 laid out across five repos.
+
+**`showreel/`.** A 15-second brand spot for flexiday, rendered frame by frame in headless Chrome
+from the product's own colours, fonts, logo and demo team, with a soundtrack synthesised from the
+same cue sheet. [`showreel/README.md`](showreel/README.md) has the render commands; the video
+itself is never committed.
 
 **`CLAUDE.md`.** Conventions that span repos. Each clone carries its own `CLAUDE.md` for its own.
 
