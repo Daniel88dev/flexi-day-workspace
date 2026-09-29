@@ -127,11 +127,16 @@ for does not carry to the next.
 ## Formatting
 
 All five repos run prettier as a CI job of its own (`format:check`), separate from eslint — `lint`
-passing says nothing about formatting. Each repo's `.claude/settings.json` formats on `Write` and
-`Edit`, but **a file written through Bash** — `sed`, a heredoc, a `python` one-liner — **skips that
-hook entirely**. `tools/hooks/format-staged.sh` catches those at commit time and re-stages them; run
-`npm run format:fe|be|emails` from the root, or `npm run format` for the workspace repo's own files,
-if you want it clean before that.
+passing says nothing about formatting. A session loads only the `.claude/settings.json` of the
+directory it started in. In a root session, `tools/hooks/format-file.sh` formats every `Write` and
+`Edit` with the prettier binary of the repo that owns the file, so its version and plugins apply,
+and runs it from inside that repo, because prettier reads ignore files from its working directory
+and the root `.prettierignore` lists every sub-repo. A session started in a sub-repo uses that
+repo's own hook. **A file written through Bash** — `sed`, a heredoc, a `python` one-liner —
+**skips both**. `tools/hooks/format-staged.sh` catches those at commit time in all five repos and
+re-stages them; run `npm run format:fe|be|emails|rn` from the root, or `npm run format` for the
+workspace repo's own files, if you want it clean before that. A file whose repo has no
+`node_modules` stays unformatted.
 
 All five use the same prettier settings (`printWidth` 100), so a file formats identically wherever
 the shared tooling touches it.
