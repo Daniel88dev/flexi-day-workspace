@@ -1,0 +1,15 @@
+{
+  "name": "flexiday-showreel",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "node render.mjs",
+    "audio": "node audio.mjs"
+  },
+  "devDependencies": {
+    "@expo-google-fonts/bricolage-grotesque": "^0.4.1",
+    "@expo-google-fonts/hanken-grotesk": "^0.4.3",
+    "@expo-google-fonts/instrument-serif": "^0.4.1",
+    "playwright-core": "^1.63.0"
+  }
+}
