@@ -105,9 +105,10 @@ That surface only exists on a dev machine. It is gated five ways, and it stays t
 ## What lives in this repo
 
 **`tools/`.** The dev CLI (`dev-cli.mjs`), the `flexi-dev` MCP server that exposes the same
-operations as agent tools, and `hooks/format-staged.sh`, which runs prettier over staged files at
-commit time. That hook exists because a file written through Bash, by `sed` or a heredoc, skips the
-editor's format-on-write and would otherwise reach CI unformatted.
+operations as agent tools, and two prettier hooks. `hooks/format-file.sh` formats each file an agent
+writes or edits with the prettier of the repo that owns it. `hooks/format-staged.sh` runs prettier
+over staged files at commit time, because a file written through Bash, by `sed` or a heredoc, skips
+the format-on-write and would otherwise reach CI unformatted.
 
 **`.claude/`.** Skills shared across all four repos: `ship` for the pre-merge pipeline, `ui-test`
 for driving the real browser, `dev-up` for the startup sequence, `unslop` for prose.

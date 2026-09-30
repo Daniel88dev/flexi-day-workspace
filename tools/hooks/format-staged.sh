@@ -16,11 +16,11 @@ case "$command" in
   *) exit 0 ;;
 esac
 
-workspace=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+workspace=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
 report=""
 
 # "." is the workspace repo itself, which runs its own format:check in CI.
-for repo in . flexi-day flexi-day-be flexi-day-emails; do
+for repo in . flexi-day flexi-day-be flexi-day-emails flexi-day-rn; do
   dir="$workspace/$repo"
   [ -x "$dir/node_modules/.bin/prettier" ] || continue
   cd "$dir" || continue
