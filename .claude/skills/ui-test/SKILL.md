@@ -135,7 +135,7 @@ simulator needs the dev client installed. `$UDID` is your simulator; use one per
 5. **Read.** Cut the tree down to what matters before reading it:
 
    ```bash
-   axe describe-ui --udid $UDID | jq -c '.. | objects | select(.AXUniqueId != null or .AXLabel != null) | {id: .AXUniqueId, label: .AXLabel, type}'
+   axe describe-ui --udid $UDID | jq -c '.. | objects | select(.AXUniqueId != null or .AXLabel != null) | {id: .AXUniqueId, label: .AXLabel, value: .AXValue, type}'
    ```
 
 6. **Act.** `axe tap --id tab-dashboard --tap-style physical --udid $UDID`. To type, tap the field
@@ -143,21 +143,55 @@ simulator needs the dev client installed. `$UDID` is your simulator; use one per
 7. **Assert.** Read the tree again and check for the expected id or label.
 8. **Hand back.** `xcrun simctl shutdown $UDID`. Leave the simulator in place; don't delete it.
 
-| Route (`--to`)       | Root `testID`                                                |
-| -------------------- | ------------------------------------------------------------ |
-| `/dashboard`         | `dashboard`                                                  |
-| `/requests`          | `requests-list` (approvals live here too)                    |
-| `/my-attendance`     | `my-attendance`                                              |
-| `/settings`          | `settings`                                                   |
-| `/clock`             | `clock-sheet`                                                |
-| `/groups`, `/report` | none yet; `stack-back` carries the screen title as its label |
+| Route (`--to`)   | Root `testID`                                    |
+| ---------------- | ------------------------------------------------ |
+| `/dashboard`     | `dashboard`                                      |
+| `/requests`      | `requests-list` (approvals live here too)        |
+| `/requests/new`  | `new-request`; takes `date` and `end`, see below |
+| `/my-attendance` | `my-attendance`                                  |
+| `/settings`      | `settings`                                       |
+| `/clock`         | `clock-sheet`                                    |
+| `/groups`        | `groups`                                         |
+| `/report`        | `report`                                         |
+| `/calendar-sync` | `calendar-sync`                                  |
+
+`/requests/new` presets the form from two optional `YYYY-MM-DD` params: `date` is the From day
+(today when it is missing or invalid) and `end` the inclusive To day. An invalid `end` is ignored,
+so the form opens on one day. An `end` before `date` collapses to `date`. Both are clamped to the
+bookable window, this year through the end of next. Quote the path, because the shell treats `?`
+and `&` specially:
+
+```bash
+npm run dev:login:rn -- owner@dev.local --to "/requests/new?date=2026-10-12&end=2026-10-16" --udid $UDID
+```
 
 A path the app doesn't have lands on Expo Router's `expo-router-unmatched` screen. There is no
 `/approvals`; the approvals queue lives on `/requests`.
 
 Navigation: `tab-dashboard`, `tab-requests`, `tab-myAttendance` or `tab-report` (which one the
 bar shows depends on the user), `tab-more`, and `clock-disc`. The More sheet has
-`more-<key>` rows, `more-sign-out` and `more-close`.
+`more-<key>` rows, `more-sign-out` and `more-close`. The keys are camelCase, so `/calendar-sync`
+opens from `more-calendarSync`.
+
+### Signed-out screens
+
+Dev sign-in always leaves the app signed in, so these screens are not `--to` targets. Tap through
+to them instead. Signing out deletes the phone's local copy of the user's data; sign in again with
+`dev:login:rn` afterwards.
+
+| Root `testID`     | How to reach it                                                     | Controls                                                           |
+| ----------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `welcome`         | `more-sign-out`, then confirm the alert's "Sign out"; or no session | `welcome-sign-in`, `welcome-create-account` (opens web sign-up)    |
+| `sign-in`         | `welcome-sign-in`                                                   | `sign-in-email`, `sign-in-password`, `sign-in-submit`, `auth-back` |
+| `auth-two-factor` | `sign-in-submit` for an account with two-factor on                  | `auth-two-factor-*`, `auth-back`                                   |
+
+Which `auth-two-factor-*` ids show depends on the method in use:
+
+- `-code` for a six-digit code, or `-backup-code` for a backup code.
+- `-submit`, replaced by `-restart` once the challenge has expired.
+- `-resend` for an emailed code.
+- `-use-totp`, `-use-otp` and `-use-backup` to switch method.
+- `-back-to-sign-in`, always.
 
 ### Traps
 
@@ -169,9 +203,12 @@ bar shows depends on the user), `tab-more`, and `clock-disc`. The More sheet has
   present while every tap lands on the menu. If `xmark` (label "Close") is in the tree, tap it.
 - **The first `axe` call after a boot** can fail with "Timed out creating the simulator remote
   automation session". Run it again.
-- **Nested ids.** Maestro and other XCUITest readers drop a `testID` nested inside a `Pressable`.
-  AXe does list some (`stat-pending-value` inside `stat-pending`), so check the tree before
-  assuming one is there or missing, and prefer the outer element's id and label.
+- **Ids sit on the outer element.** iOS hides a `Pressable`'s children from the tree, so the app
+  puts no `testID` inside one (`flexi-day-rn/CLAUDE.md` requires it). Read a control's state from
+  that outer element. Its `AXLabel` carries text: a stat tile reads `<label>: <value>`, and the
+  bell's label says whether anything is unread. Its `AXValue` carries the clock disc's state,
+  offline included. A loading tile or disc is busy, and React Native adds `busy` to `AXValue` for
+  that; AXe has no separate busy field. Check the tree before assuming an id is there or missing.
 - **Typing.** AXe types US-keyboard ASCII only. Tap the field first so no keystroke lands
   elsewhere: a stray `r` or `d` reloads the dev client or opens its menu. The Czech input source
   mangles digits and `@`; keep the simulator on a US layout.
