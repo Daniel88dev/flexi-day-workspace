@@ -15,10 +15,12 @@ needs Postgres + backend + a signed-in user. All of it is local-only and gated (
 npm run stack:status
 ```
 
-Start whatever it reports as down, using the Browser pane (never `Bash` for dev servers):
-`preview_start` with `{name: "flexi-be"}` and `{name: "flexi-fe"}` — both are defined in
-`.claude/launch.json`. Postgres: see the `/dev-up` skill. Re-run `stack:status` until all four
-lines are green (the fourth is the dev tooling itself).
+Start whatever it reports as down. For browser work use the Browser pane: `preview_start` with
+`{name: "flexi-be"}` and `{name: "flexi-fe"}`, both defined in `.claude/launch.json`. A server
+started that way stops when its Browser tab closes, so for simulator work run `npm run dev:be` as a
+background Bash process instead. Metro (`npm run dev:rn`) always runs that way. Postgres: see the
+`/dev-up` skill. Re-run `stack:status` until all four lines are green (the fourth is the dev
+tooling itself).
 
 ## 2. Seed data
 

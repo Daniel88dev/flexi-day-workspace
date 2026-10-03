@@ -3,10 +3,10 @@
 ## Workspace layout
 
 This root directory is its own git repository — `Daniel88dev/flexi-day-workspace`, public. It
-versions only the cross-cutting files (`CLAUDE.md`, `.claude/`, `docs/`, `tools/`, `package.json`)
-plus `showreel/`, the flexiday motion reel built as code, and holds four independent repos that
-make up the Flexi Day vacation/day-off management product, each with its own remote,
-`package.json`, CI, `CLAUDE.md` and `.claude/`:
+versions only the cross-cutting files (`CLAUDE.md`, `.claude/`, `.agents/`, `docs/`, `tools/`,
+`package.json`) plus `showreel/`, the flexiday motion reel built as code, and holds four
+independent repos that make up the Flexi Day vacation/day-off management product, each with its
+own remote, `package.json`, CI, `CLAUDE.md` and `.claude/`:
 
 | Directory           | Role                                    | Stack                                                                                     |
 | ------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -145,7 +145,8 @@ the shared tooling touches it.
 ## Writing style
 
 Apply the `unslop` skill to all prose written for the user, including chat responses, docs, commit
-messages and PR descriptions.
+messages and PR descriptions. New text in `CLAUDE.md` files and skills follows it too, em-dash rule
+included; existing em dashes there change only when their passage is edited for another reason.
 
 ## Code review
 
