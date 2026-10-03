@@ -111,8 +111,8 @@ If you find nothing that meets that bar, say "no findings" — do not pad the li
 
 Invoke the **`ui-test` skill** and follow it — it is the authoritative loop. In short:
 
-1. `npm run stack:status`; start what is down with `preview_start` (`{name: "flexi-be"}`,
-   `{name: "flexi-fe"}` from `.claude/launch.json`) — **never** run dev servers through Bash.
+1. `npm run stack:status`; start what is down the way `ui-test` describes: `preview_start`
+   (`{name: "flexi-be"}`, `{name: "flexi-fe"}` from `.claude/launch.json`) for browser work.
    Postgres: see `/dev-up`. `npm run db:migrate` if this change touched the schema.
 2. `npm run dev:scenario` to seed, then open
    `http://localhost:3000/dev-sign-in/?email=owner@dev.local` for an authenticated dashboard.

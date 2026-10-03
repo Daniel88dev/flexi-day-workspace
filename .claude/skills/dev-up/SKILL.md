@@ -66,4 +66,7 @@ feature in the browser is the `ui-test` skill.
 
 - `flexi-day-emails` preview (`npm run dev`) also binds `:3000` — don't run it alongside the frontend
   without overriding the port.
-- Run each `npm run dev` in its own long-lived process (background them; they don't exit).
+- For browser work, start the backend and frontend with `preview_start` (`{name: "flexi-be"}`,
+  `{name: "flexi-fe"}`). A server started that way stops when its Browser tab closes, so when the
+  backend has to outlive the tab, as for simulator work, run `npm run dev:be` as a background
+  process. Metro (`npm run dev:rn`) always runs in the background; none of these exit.
