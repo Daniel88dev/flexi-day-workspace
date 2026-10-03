@@ -95,7 +95,8 @@ AWS resource is not finished until the Terraform files carry it.
 
 **`terraform apply` and production database migrations both belong to the user.** Prepare the
 change, run the plan or apply the migration locally, then hand over the exact command and stop.
-`npm run db:migrate:prod` enforces this itself: it quits unless stdin is a terminal.
+`npm run db:migrate:prod` in `flexi-day-be` enforces this itself: it quits unless stdin is a
+terminal.
 
 - **Backend** (App Runner, RDS, Secrets Manager, Route 53 for `api.flexi-day.com`) —
   `flexi-day-be/docs/terraform.md`.
