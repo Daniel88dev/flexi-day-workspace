@@ -102,8 +102,9 @@ terminal.
   `flexi-day-be/docs/terraform.md`.
 - **Email and inbound mail** (GitHub Actions OIDC role, SES receipt rules, MX and SPF) —
   `flexi-day-emails/terraform/README.md`.
-- **Frontend** has no Terraform. Its S3 bucket and CloudFront distribution were created by hand, and
-  its build-time `NEXT_PUBLIC_*` values are GitHub Actions repository variables read in
+- **Frontend** (S3 bucket, CloudFront distribution and its redirect function, imported from what
+  was first built by hand) is in `flexi-day/docs/terraform.md`. Its build-time `NEXT_PUBLIC_*`
+  values stay outside Terraform, as GitHub Actions repository variables read in
   `flexi-day/.github/workflows/ci.yml`. Adding one there means adding it to that workflow and asking
   the user to set the variable with `gh variable set`.
 
