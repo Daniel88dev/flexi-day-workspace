@@ -63,13 +63,13 @@ through Xcode from inside `flexi-day-rn/`.
 Sign-up requires email verification through SES, which does nothing locally, so seeding and sign-in
 go through a gated dev surface rather than manual `curl` + `psql`:
 
-| Command                           | Effect                                                                                          |
-| --------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `npm run dev:scenario`            | seeds `owner@dev.local` (manager + approver), three members, quotas and bookings in every state |
-| `npm run dev:seed`                | one verified user, optionally with a team                                                       |
-| `npm run dev:login <email>`       | issues a signed session cookie for API calls                                                    |
-| `npm run dev:login:rn -- <email>` | signs the user into the iPhone app on the simulator; `--to /path`, `--udid <udid>`              |
-| `npm run dev:reset`               | deletes every `@dev.local` account and its data, nothing else                                   |
+| Command                           | Effect                                                                                                                                                                  |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev:scenario`            | seeds `owner@dev.local` (manager + approver), three members, quotas and bookings in every state, plus `Dev Support`, which the owner administers without being a member |
+| `npm run dev:seed`                | one verified user, optionally with a team                                                                                                                               |
+| `npm run dev:login <email>`       | issues a signed session cookie for API calls                                                                                                                            |
+| `npm run dev:login:rn -- <email>` | signs the user into the iPhone app on the simulator; `--to /path`, `--udid <udid>`                                                                                      |
+| `npm run dev:reset`               | deletes every `@dev.local` account and its data, nothing else                                                                                                           |
 
 `http://localhost:3000/dev-sign-in/?email=owner@dev.local` then lands on the dashboard already
 authenticated. The `flexi-dev` MCP server (`.mcp.json`, `tools/mcp/flexi-dev/`) exposes the same

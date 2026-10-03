@@ -68,6 +68,12 @@ const commands = {
     console.log(`team      ${result.team.groupName}`);
     console.log(`owner     ${result.owner.email}`);
     console.log(`members   ${result.members.map((m) => m.email).join(", ")}`);
+    if (result.administeredTeam) {
+      const { groupName, manager, members } = result.administeredTeam;
+      console.log(
+        `admin of  ${groupName} (${[manager, ...members].map((m) => m.email).join(", ")})`
+      );
+    }
     console.log(`password  ${result.owner.password} (shared by every seeded account)`);
     console.log(`bookings  ${result.vacationsCreated}`);
     console.log(`sign in   ${signInUrlFor(result.owner.email)}`);
