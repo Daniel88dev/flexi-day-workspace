@@ -14,14 +14,14 @@ Track the gates with TaskCreate/TaskUpdate so the user can see where the run is.
 ## Gate 0 — scope the run
 
 ```bash
-for d in . flexi-day flexi-day-be flexi-day-emails; do echo "== $d"; git -C "$d" status --porcelain; git -C "$d" branch --show-current; done
+for d in . flexi-day flexi-day-be flexi-day-emails flexi-day-rn; do echo "== $d"; git -C "$d" status --porcelain; git -C "$d" branch --show-current; done
 ```
 
 - Only run gates for the repos that actually have changes. A backend-only change does not need the
   frontend test suite.
-- Each sub-repo is its **own git repo with its own remote**; the workspace root is a fourth repo
-  with its own remote too (`Daniel88dev/flexi-day-workspace` — it versions `CLAUDE.md`, `.claude/`,
-  `docs/`, `tools/`, `package.json` only). Changes spanning repos become **one PR per repo**.
+- Each sub-repo is its **own git repo with its own remote**, and so is the workspace root
+  (`Daniel88dev/flexi-day-workspace`; root `CLAUDE.md` says what it versions). Changes spanning
+  repos become **one PR per repo**.
 - Note the current branch per repo. If a repo is already on a feature branch, reuse it at gate 6
   instead of branching again.
 - Read the actual diff before anything else — you cannot review or test what you have not read:
@@ -32,19 +32,20 @@ for d in . flexi-day flexi-day-be flexi-day-emails; do echo "== $d"; git -C "$d"
 Run from the **workspace root**; these scripts delegate into the sub-repos. Use Node 24 (`.nvmrc`) —
 a different npm major rewrites `package-lock.json` and breaks `npm ci` in CI.
 
-| Repo                | Checks (in order)                                                                      |
-| ------------------- | -------------------------------------------------------------------------------------- |
-| `flexi-day` (FE)    | `npm run format:check:fe` · `npm run lint:fe` · `npm run test:fe` · `npm run build:fe` |
-| `flexi-day-be` (BE) | `npm run format:check:be` · `npm run lint:be` · `npm run build:be` · `npm run test:be` |
-| `flexi-day-emails`  | `npm run format:check:emails` · `npm run typecheck:emails` · `npm run build:emails`    |
-| workspace root      | `npm run check` (prettier · eslint · shellcheck · actionlint · link check)             |
+| Repo                | Checks (in order)                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------ |
+| `flexi-day` (FE)    | `npm run format:check:fe` · `npm run lint:fe` · `npm run test:fe` · `npm run build:fe`     |
+| `flexi-day-be` (BE) | `npm run format:check:be` · `npm run lint:be` · `npm run build:be` · `npm run test:be`     |
+| `flexi-day-emails`  | `npm run format:check:emails` · `npm run typecheck:emails` · `npm run build:emails`        |
+| `flexi-day-rn`      | `npm run format:check:rn` · `npm run lint:rn` · `npm run typecheck:rn` · `npm run test:rn` |
+| workspace root      | `npm run check` (prettier · eslint · shellcheck · actionlint · link check)                 |
 
 Run the independent ones in parallel (one Bash call each, same block). Notes:
 
 - **`format:check` is a CI gate, and `lint` does not cover it.** `lint` is eslint; prettier is the
   separate `format:check` job, and it fails the build on its own. The `Write|Edit` hooks format as
   you go, but a file written through Bash — `sed`, a heredoc, a `python` one-liner — never triggers
-  them. Fix a failure with `npm run format:fe|be|emails`, never by hand.
+  them. Fix a failure with `npm run format:fe|be|emails|rn`, never by hand.
 
 - **`build:fe` / `build:be` are the typecheck.** The frontend has no `typecheck` script — `next build`
   does it; the backend's `build` _is_ `tsc`. For a fast inner loop only:
@@ -125,8 +126,11 @@ Invoke the **`ui-test` skill** and follow it — it is the authoritative loop. I
 Gotchas: URLs need the **trailing slash** (`/dashboard/`); the UI **defaults to Czech**; the emails
 preview also binds `:3000`, so never run it alongside the frontend.
 
-Skip this gate **only** when the change cannot be exercised in a browser (emails templates, docs,
-tooling, backend-internal refactors covered by e2e) — and say explicitly in the final report that it
+A `flexi-day-rn` change is exercised on the simulator instead, through the iPhone section of
+`ui-test`.
+
+Skip this gate **only** when the change cannot be exercised in a browser or on the simulator
+(emails templates, docs, tooling, backend-internal refactors covered by e2e) — and say explicitly in the final report that it
 was skipped and why. "Hard to reach in the UI" is not a reason to skip; seed the state you need.
 
 ## Gate 5 — fix what the browser found
@@ -154,10 +158,8 @@ Only after gates 1–5 are green.
 
 3. **Commit** in the repos' conventional-commit style (`fix: stop the report hiding a leave
 overdraft`) — subject in the imperative, body explaining _why_ when it is not obvious. End every
-   message with:
-   ```
-   Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
-   ```
+   message with the `Co-Authored-By:` trailer from this session's attribution instructions, so it
+   names the model that actually ran.
 4. The repo owner has pre-authorized this step for this pipeline: push the feature branch and open
    the PR as the normal end of the run, then report the branch, commit subjects and PR URL. The
    authorization covers exactly that — pushing a feature branch and opening a PR against `main`. It

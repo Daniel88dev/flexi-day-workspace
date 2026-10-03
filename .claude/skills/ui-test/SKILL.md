@@ -28,7 +28,8 @@ npm run dev:scenario
 
 Seeds `owner@dev.local` (manager **and** approver), `alice`/`bob`/`carol@dev.local`, current-year
 quotas, and 11 bookings spread across pending / approved / rejected — enough for every dashboard
-widget and the approvals queue to have content. Safe to re-run: existing rows are left alone and the
+widget and the approvals queue to have content. Re-running leaves existing rows alone, so a seeded
+user keeps team scopes from older runs; run `npm run dev:reset` first when roles matter. The
 password it prints is always valid for every seeded account.
 
 Prefer the `flexi-dev` MCP tools (`stack_status`, `dev_seed_scenario`, `dev_login`, `dev_reset`) when
