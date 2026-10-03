@@ -76,7 +76,7 @@ tool(
   {
     title: "Seed a full team scenario",
     description:
-      "Seeds an owner/approver, three members, current-year quotas and eleven bookings spread across pending/approved/rejected, so every dashboard widget and the approvals queue have content. Safe to re-run.",
+      "Seeds an owner/approver, three members, current-year quotas and eleven bookings spread across pending/approved/rejected, so every dashboard widget and the approvals queue have content. Also seeds Dev Support, a second team in the owner's organization run by dave@dev.local, which the owner administers without being a member, with two more members, quotas and eight bookings. Safe to re-run.",
     inputSchema: {
       teamName: z.string().optional(),
       ownerEmail: z.string().optional(),
