@@ -62,6 +62,25 @@ Then open `http://localhost:3000/dev-sign-in/?email=owner@dev.local` to land on 
 authenticated. `npm run dev:reset` removes everything it seeded. The full loop for exercising a
 feature in the browser is the `ui-test` skill.
 
+## In a cloud session
+
+`CLAUDE_CODE_REMOTE=true` means a cloud container. Docker has no daemon there, so `db:up` is out;
+the image's native Postgres 16 is the database, and the SessionStart hook has already run
+`tools/cloud/setup.sh`, which starts it, creates `flexi-day` and `testdb`, writes the env files
+and migrates. If `npm run stack:status` still shows Postgres down, run `bash tools/cloud/setup.sh`
+yourself.
+
+`preview_start` does not exist in the cloud. Start the servers detached instead:
+
+```bash
+npm run stack:start        # migrate, start backend and frontend, wait until both answer
+npm run stack:logs be      # backend log; `fe` for the frontend, `-f` to follow
+npm run stack:stop
+```
+
+The first `stack:start` builds the backend and compiles the frontend, so it can take a couple of
+minutes; later ones return as soon as the ports answer.
+
 ## Notes
 
 - `flexi-day-emails` preview (`npm run dev`) also binds `:3000` — don't run it alongside the frontend

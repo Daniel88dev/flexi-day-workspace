@@ -40,7 +40,8 @@ jobs:
       - name: Check relative links
         run: npm run check:links
 
-  # The commit hook is a bash script that rewrites the git index — worth linting properly.
+  # The commit hook rewrites the git index and the cloud setup script provisions a container,
+  # so the shell under tools/ gets linted properly.
   shell:
     name: Shell
     runs-on: ubuntu-latest
@@ -53,7 +54,7 @@ jobs:
 
       # shellcheck ships preinstalled on the GitHub-hosted ubuntu images.
       - name: ShellCheck
-        run: shellcheck tools/hooks/*.sh
+        run: find tools -name "*.sh" -exec shellcheck {} +
 
   actions:
     name: Workflows

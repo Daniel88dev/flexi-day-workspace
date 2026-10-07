@@ -3,6 +3,10 @@
     "flexi-dev": {
       "command": "node",
       "args": ["tools/mcp/flexi-dev/index.mjs"]
+    },
+    "playwright": {
+      "command": "bash",
+      "args": ["tools/mcp/playwright.sh"]
     }
   }
 }

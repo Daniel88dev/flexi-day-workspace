@@ -83,6 +83,7 @@ Run these from this directory. They reach into the clones for you.
 | `npm run stack:status`                                            | reports what is currently up: Postgres, backend, frontend, Metro, dev tooling |
 | `npm run dev:be` / `dev:fe` / `dev:emails` / `dev:rn`             | start one dev server (`dev:rn` is Metro; the iPhone build runs through Xcode) |
 | `npm run db:up` / `db:down`                                       | start or stop the Postgres container                                          |
+| `npm run stack:start` / `stack:stop` / `stack:logs`               | run the backend and frontend detached, with logs in `.stack/`                 |
 | `npm run check`                                                   | this repo's own checks: prettier, eslint, links, shellcheck, actionlint       |
 | `npm run format:fe` / `format:be` / `format:emails` / `format:rn` | run prettier inside a clone                                                   |
 
@@ -101,6 +102,37 @@ signed in.
 
 That surface only exists on a dev machine. It is gated five ways, and it stays that way.
 `flexi-day-be/docs/invariants.md` has the enforcement.
+
+## Cloud sessions
+
+Claude Code cloud sessions run this workspace too, with the backend, the frontend and a real
+Postgres inside the container. The iPhone app stays out: it needs Xcode and a simulator.
+
+Create a cloud environment at [claude.ai/code](https://claude.ai/code) that attaches **only this
+repository**. A session with one repository loads `.claude/settings.json`, the skills, the hooks
+and `.mcp.json`; a session with several attached starts above the clones and loads none of them.
+Put this in the environment's **Setup script** field:
+
+```bash
+bash tools/cloud/setup.sh
+```
+
+The script clones the four product repos into the checkout, installs Node 24 and the dependencies
+(`flexi-day-rn` only with `FLEXI_CLOUD_WITH_RN=1`, to stay inside the five-minute window after
+which the container is not cached), starts the image's Postgres with trust auth on loopback, writes
+the three env files with random secrets and dev tools on, and applies migrations. The
+`SessionStart` hook runs it again on every session; by then almost everything is in place and the
+run mostly restarts Postgres, which the cached filesystem cannot keep running.
+
+Inside the session, `npm run stack:start` brings the backend and frontend up as detached
+processes and `.mcp.json` provides a `playwright` server on the container's headless Chromium, so
+the `ui-test` skill works the same way it does on a laptop. Pushing to one of the product repos
+needs that repo attached to the session with push access first.
+
+On a laptop `.mcp.json` starts the same Playwright server headed, on your installed Google Chrome.
+It is pinned in `package.json`, so prefer it over the Playwright plugin, which runs `@latest`: with
+both enabled, two copies of the browser tools show up. Disable the plugin for this workspace in
+`.claude/settings.local.json` with `"enabledPlugins": { "playwright@claude-plugins-official": false }`.
 
 ## What lives in this repo
 

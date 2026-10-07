@@ -58,6 +58,10 @@ database works as is, otherwise `npm run db:up` starts a `flexi-day-pg` containe
 `npm run dev:rn` starts Metro on `:8081` for the iPhone dev client; the native build itself goes
 through Xcode from inside `flexi-day-rn/`.
 
+`npm run stack:start` runs the backend and the frontend as detached processes, for a shell that
+cannot keep a foreground server alive, and waits until both answer. Logs land in `.stack/`
+(`npm run stack:logs`), and `npm run stack:stop` ends them.
+
 ## Seeding and signing in locally
 
 Sign-up requires email verification through SES, which does nothing locally, so seeding and sign-in
@@ -80,6 +84,36 @@ The surface exists only on a dev machine, gated five ways, and stays that way. T
 the endpoint where the iPhone app redeems its sign-in ticket: it keeps three of the gates and skips
 the loopback and token checks, because the simulator reaches the backend over the LAN and the app
 must never hold the token. `flexi-day-be/docs/invariants.md` has the enforcement and the reasoning.
+
+## Cloud sessions
+
+A Claude Code cloud environment that attaches only this repo runs the whole stack, Postgres
+included, with no Docker. `tools/cloud/setup.sh` is the environment's setup script. It installs
+Node 24 through nvm and links it ahead of the image's Node 22, clones the four product repos into
+this checkout, runs `npm ci` in every repo but `flexi-day-rn` (`FLEXI_CLOUD_WITH_RN=1` adds it),
+starts the image's native Postgres 16 with trust auth on loopback and the `flexi-day` and `testdb`
+databases, writes `flexi-day-be/.env`, `flexi-day-be/.env.e2e.test` and `flexi-day/.env.local` with
+random secrets and dev tools on, and applies migrations to both databases. Unlike the laptop's,
+the `DATABASE` URLs there name the OS user, because node-postgres falls back to `$USER` and a cloud
+shell does not set it. Each step skips what is already there, so the SessionStart hook in
+`.claude/settings.json` runs it again on every cloud session. That second run is what restarts
+Postgres: the cached container is a filesystem snapshot and keeps no process. The script refuses to
+run outside a cloud container unless passed `--force`, because it edits `pg_hba.conf` and creates
+database roles. The environment's setup script field holds one line, `bash tools/cloud/setup.sh`;
+[`README.md`](README.md) walks through the environment settings.
+
+There is no desktop Browser pane in a cloud session, so `preview_start` does not exist: `npm run
+stack:start` is the way to bring the servers up, and `npm run stack:logs be` is where backend
+errors go. The `playwright` server in `.mcp.json` drives the image's headless Chromium, and the
+`ui-test` skill names the tools. The backend e2e suite runs against the native `testdb` with
+`npm run test:e2e` inside `flexi-day-be`, no container needed.
+
+The four clones carry no push credentials. Pushing to a product repo from a cloud session needs
+that repo attached with push access through the session's add-repo tool.
+
+A session that attaches several repos loads none of this: no `.claude/settings.json`, no hooks, no
+`.mcp.json`. `bash tools/cloud/setup.sh` still works there and links the sibling clones into this
+checkout, so the stack runs and the dev CLI finds `flexi-day-be/.env`, but browser work has no MCP.
 
 ## Node version
 

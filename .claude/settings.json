@@ -46,6 +46,19 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/tools/cloud/session-start.sh",
+            "statusMessage": "Preparing the cloud container (Node 24, dependencies, Postgres)...",
+            "timeout": 900
+          }
+        ]
+      }
     ]
   }
 }
