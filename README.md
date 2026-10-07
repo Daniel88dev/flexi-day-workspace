@@ -129,8 +129,10 @@ processes and `.mcp.json` provides a `playwright` server on the container's head
 the `ui-test` skill works the same way it does on a laptop. Pushing to one of the product repos
 needs that repo attached to the session with push access first.
 
-On a laptop `.mcp.json` now starts the same Playwright server headed. If the Playwright plugin is
-installed as well, two copies of the browser tools show up; keep one.
+On a laptop `.mcp.json` starts the same Playwright server headed, on your installed Google Chrome.
+It is pinned in `package.json`, so prefer it over the Playwright plugin, which runs `@latest`: with
+both enabled, two copies of the browser tools show up. Disable the plugin for this workspace in
+`.claude/settings.local.json` with `"enabledPlugins": { "playwright@claude-plugins-official": false }`.
 
 ## What lives in this repo
 
