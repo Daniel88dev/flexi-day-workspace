@@ -15,7 +15,19 @@ owner=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || exit 0
 
 case "$owner" in
   "$workspace" | "$workspace"/*) ;;
-  *) exit 0 ;;
+  *)
+    # A sub-repo reached through a symlink (a cloud session that cloned the repos as
+    # siblings) resolves outside the workspace, so match it by its link instead.
+    linked=0
+    for name in flexi-day flexi-day-be flexi-day-emails flexi-day-rn; do
+      [ -L "$workspace/$name" ] || continue
+      if [ "$(cd "$workspace/$name" 2>/dev/null && pwd -P)" = "$owner" ]; then
+        linked=1
+        break
+      fi
+    done
+    [ "$linked" = 1 ] || exit 0
+    ;;
 esac
 
 [ -x "$owner/node_modules/.bin/prettier" ] || exit 0

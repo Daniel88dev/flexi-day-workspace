@@ -22,6 +22,10 @@ background Bash process instead. Metro (`npm run dev:rn`) always runs that way. 
 `/dev-up` skill. Re-run `stack:status` until all four lines are green (the fourth is the dev
 tooling itself).
 
+**In a cloud session** (`CLAUDE_CODE_REMOTE=true`) there is no Browser pane. `npm run stack:start`
+runs both servers detached and waits for them; `npm run stack:logs be` is the backend log. The
+`/dev-up` skill has the cloud details.
+
 ## 2. Seed data
 
 ```bash
@@ -65,6 +69,23 @@ auth flow _itself_ is what is being tested.
 - `preview_logs` for backend errors.
 - `resize_window` for responsive/dark-mode checks.
 - Finish with `computer {action: "screenshot"}` as proof for the user.
+
+**In a cloud session** the `playwright` MCP server from `.mcp.json` replaces the Browser pane's
+tools, on the container's headless Chromium:
+
+| Browser pane                               | Playwright MCP                                         |
+| ------------------------------------------ | ------------------------------------------------------ |
+| navigate                                   | `browser_navigate`                                     |
+| `read_page`                                | `browser_snapshot` (accessibility tree with refs)      |
+| `computer` click / `form_input`            | `browser_click`, `browser_type`, `browser_fill_form`   |
+| `read_console_messages {onlyErrors: true}` | `browser_console_messages {level: "error"}`            |
+| `read_network_requests {urlPattern: ...}`  | `browser_network_requests`, filter on `localhost:8080` |
+| `preview_logs`                             | `npm run stack:logs be`                                |
+| `resize_window`                            | `browser_resize`                                       |
+| `computer {action: "screenshot"}`          | `browser_take_screenshot`                              |
+
+Call `browser_take_screenshot` without a `filename`: snapshots and screenshots then land in
+`.playwright-mcp/`, which is gitignored, while a filename is written relative to the repo root.
 
 ## 5. Clean up
 

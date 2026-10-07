@@ -112,12 +112,13 @@ If you find nothing that meets that bar, say "no findings" — do not pad the li
 Invoke the **`ui-test` skill** and follow it — it is the authoritative loop. In short:
 
 1. `npm run stack:status`; start what is down the way `ui-test` describes: `preview_start`
-   (`{name: "flexi-be"}`, `{name: "flexi-fe"}` from `.claude/launch.json`) for browser work.
-   Postgres: see `/dev-up`. `npm run db:migrate` if this change touched the schema.
+   (`{name: "flexi-be"}`, `{name: "flexi-fe"}` from `.claude/launch.json`) for browser work, or
+   `npm run stack:start` in a cloud session. Postgres: see `/dev-up`. `npm run db:migrate` if this
+   change touched the schema.
 2. `npm run dev:scenario` to seed, then open
    `http://localhost:3000/dev-sign-in/?email=owner@dev.local` for an authenticated dashboard.
 3. Drive the **changed feature** end to end, plus one pass over the dashboard and requests pages for
-   regressions. Assert with `read_page`, not screenshots.
+   regressions. Assert with `read_page` (`browser_snapshot` in the cloud), not screenshots.
 4. Check `read_console_messages {onlyErrors: true}`,
    `read_network_requests {urlPattern: "localhost:8080"}` and `preview_logs` — a page that looks fine
    over a 500 is the usual trap.

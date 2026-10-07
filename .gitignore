@@ -1,9 +1,10 @@
 # Independent sub-repos — each has its own git remote and release cadence.
-# This repo only versions cross-cutting files (see CLAUDE.md).
-/flexi-day/
-/flexi-day-be/
-/flexi-day-emails/
-/flexi-day-rn/
+# This repo only versions cross-cutting files (see CLAUDE.md). No trailing slash: in a cloud
+# session with several repositories these are symlinks to sibling clones (tools/cloud/setup.sh).
+/flexi-day
+/flexi-day-be
+/flexi-day-emails
+/flexi-day-rn
 
 # Working notes; deliberately local-only.
 /todo/
@@ -20,3 +21,6 @@
 
 # Playwright MCP scratch: snapshots, console logs and screenshots from ui-test runs.
 .playwright-mcp/
+
+# Logs and pid files of the detached dev servers (tools/stack.sh), and cloud setup logs.
+/.stack/
