@@ -47,8 +47,16 @@ ensure_postgres() {
   die "PostgreSQL did not come up"
 }
 
-# `setsid` gives the npm process its own process group, so stop can take the whole tree
-# (npm, the nested npm, node) down with one signal.
+# A session of its own gives the npm process its own process group, so stop can take the whole
+# tree (npm, the nested npm, node) down with one signal. macOS has no setsid(1), so perl makes the
+# setsid(2) call there. Both exec in place, which keeps $! the group leader's pid.
+if command -v setsid >/dev/null; then
+  DETACH=(setsid)
+else
+  # shellcheck disable=SC2016 # $! and @ARGV are perl's
+  DETACH=(perl -MPOSIX -e 'POSIX::setsid() != -1 or die "setsid: $!\n"; exec @ARGV or die "exec $ARGV[0]: $!\n"' --)
+fi
+
 start_one() {
   local name=$1 url=$2 script=$3
   if answers "$url"; then
@@ -59,7 +67,7 @@ start_one() {
     echo "$name is still starting (pid $(cat "$RUN_DIR/$name.pid"))"
   else
     echo "starting $name: npm run $script, log in .stack/$name.log"
-    setsid nohup npm --prefix "$WORKSPACE" run "$script" >"$RUN_DIR/$name.log" 2>&1 </dev/null &
+    "${DETACH[@]}" nohup npm --prefix "$WORKSPACE" run "$script" >"$RUN_DIR/$name.log" 2>&1 </dev/null &
     echo $! >"$RUN_DIR/$name.pid"
   fi
   for _ in $(seq 1 "$START_TIMEOUT"); do
