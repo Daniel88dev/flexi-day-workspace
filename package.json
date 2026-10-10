@@ -55,7 +55,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.31.0",
     "@playwright/mcp": "^0.0.83",
     "@sentry/cli": "^3.6.2",
     "eslint": "^10.9.0",
