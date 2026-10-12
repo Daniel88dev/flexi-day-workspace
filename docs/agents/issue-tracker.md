@@ -30,6 +30,9 @@ their parent.
   description. `status` is `todo` by default; pass `backlog` for anything not yet triaged.
 - **From a GitHub issue**: `save_task` with
   `attach: [{ url: "https://github.com/Daniel88dev/<repo>/issues/<n>", is_source: true }]`.
+- **Make a task a sub-task of a parent**: `save_task` with `parent` set to the parent's key, on
+  create or afterwards. When a skill says to make tickets sub-issues of their source, this is the
+  operation.
 - **Read a task**: `get_task` with `task: "T-12"` returns the full brief: description, criteria,
   blockers, sub-tasks, the latest handoff, decisions and recent journal.
 - **List tasks**: `list_tasks` with `repository`, `labels`, `status`, `parent` or `text` filters.
@@ -74,6 +77,8 @@ Used by `/wayfinder`. The map is a parent task and its tickets are sub-tasks.
 
 - **Labels**: `wayfinder:map` on the map; `wayfinder:research`, `wayfinder:prototype`,
   `wayfinder:grilling`, `wayfinder:task` on tickets. `save_task` creates any that don't exist yet.
+  A map and its tickets carry no triage label such as `ready-for-agent`: they hold decisions, not
+  implementation work.
 - **Map**: one task labelled `wayfinder:map`, with the skill's template (Notes / Decisions so far /
   Not yet specified) as its description, and `repository` set as in the table above.
 - **Child tickets**: `save_task` with `parent` set to the map's key.

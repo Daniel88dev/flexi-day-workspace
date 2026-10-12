@@ -40,7 +40,7 @@ CI runs prettier, eslint, shellcheck, actionlint and a relative-link check on ev
 
 - Frontend → backend over HTTP via `NEXT_PUBLIC_API_URL` (local: `http://localhost:8080`).
 - iPhone app → the same backend, through better-auth's `expo` plugin and a native session; a local
-  store (expo-sqlite) mirrors what the user can see on the web. See `flexi-day-rn/CONTEXT.md`.
+  store (expo-sqlite) mirrors what the user can see on the web. See `flexi-day-rn/GLOSSARY.md`.
 - Backend → SES: sends templates named `flexi-day-{template}-{dev,prod}` (region `eu-central-1`)
   produced by `flexi-day-emails`. See `flexi-day-emails/INTEGRATION.md`.
 - The repos version and deploy independently; there is no shared lockstep release.
@@ -152,6 +152,9 @@ terminal.
   from `main` only if it doesn't exist yet in that repo.
 - Each ticket lands as exactly one commit on that branch. Follow-up runs on the same feature reuse
   the branch — never a second one.
+- `/implement-spec` uses `feat/<feature-slug>` as its integration branch, one per touched repo,
+  and runs at most two implementer subagents at a time. The one-commit-per-ticket rule still
+  holds for every merge onto that branch.
 
 ## Merging pull requests
 
@@ -185,8 +188,9 @@ included; existing em dashes there change only when their passage is edited for 
 
 ## Code review
 
-For review requests ("review this", "check my changes"), use the `mattpocock-skills:code-review`
-plugin skill. Use the built-in `/code-review` (including ultra) only when the user names it.
+For review requests ("review this", "check my changes"), use Matt Pocock's `code-review`
+skill (installed with `npx skills` into `~/.agents/skills/`). Use the built-in `/code-review`
+(including ultra) only when the user names it.
 
 ## Comments
 
@@ -202,5 +206,5 @@ stay complete and current.
   attached to a task as its source. See `docs/agents/issue-tracker.md`.
 - **Triage labels** — the five canonical roles as fenro labels, each paired with a status so only
   `ready-for-agent` tasks reach the ready queue. See `docs/agents/triage-labels.md`.
-- **Domain docs** — a root `CONTEXT-MAP.md` points at per-repo `CONTEXT.md` files; ADRs live in each
-  repo's `docs/adr/`, system-wide ones at the workspace root. See `docs/agents/domain.md`.
+- **Domain docs**: a root `GLOSSARY-MAP.md` points at per-repo `GLOSSARY.md` files; ADRs live in
+  each repo's `docs/adr/`, system-wide ones at the workspace root. See `docs/agents/domain.md`.
