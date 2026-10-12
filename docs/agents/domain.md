@@ -8,13 +8,13 @@ docs live per-repo, with a map at the workspace root.
 
 ## Before exploring, read these
 
-- **`CONTEXT-MAP.md`** at the workspace root. It names the four contexts, says which of them have
-  a `CONTEXT.md` yet, and how they talk to each other. Read the ones relevant to the topic.
-- **`<sub-repo>/CONTEXT.md`** — the glossary and boundaries for that repo's context.
+- **`GLOSSARY-MAP.md`** at the workspace root. It names the four contexts, says which of them have
+  a `GLOSSARY.md` yet, and how they talk to each other. Read the ones relevant to the topic.
+- **`<sub-repo>/GLOSSARY.md`** — the glossary and boundaries for that repo's context.
 - **`docs/adr/`** at the workspace root for system-wide decisions, and **`<sub-repo>/docs/adr/`**
   for decisions scoped to one repo.
 
-Only `flexi-day-be` and `flexi-day-rn` have a `CONTEXT.md` so far. Where one is missing,
+Only `flexi-day-be` and `flexi-day-rn` have a `GLOSSARY.md` so far. Where one is missing,
 **proceed silently**. Don't flag the absence; don't suggest creating the file upfront. The
 `/domain-modeling` skill writes it when that repo resolves a term of its own.
 
@@ -22,19 +22,19 @@ Only `flexi-day-be` and `flexi-day-rn` have a `CONTEXT.md` so far. Where one is 
 
 ```text
 /                                      ← workspace root repo (flexi-day-workspace)
-├── CONTEXT-MAP.md                     ← the index; points at per-repo contexts
+├── GLOSSARY-MAP.md                    ← the index; points at per-repo contexts
 ├── docs/adr/                          ← system-wide decisions (cross-repo contracts, deploy topology)
 ├── flexi-day/
-│   ├── CONTEXT.md                     ← written lazily, like every per-repo file here
+│   ├── GLOSSARY.md                    ← written lazily, like every per-repo file here
 │   └── docs/adr/                      ← frontend-scoped decisions (travel with the repo to GitHub)
 ├── flexi-day-be/
-│   ├── CONTEXT.md
+│   ├── GLOSSARY.md
 │   └── docs/adr/
 ├── flexi-day-emails/
-│   ├── CONTEXT.md
+│   ├── GLOSSARY.md
 │   └── docs/adr/
 └── flexi-day-rn/
-    ├── CONTEXT.md
+    ├── GLOSSARY.md
     └── docs/adr/
 ```
 
@@ -45,7 +45,7 @@ go in the workspace-root `docs/adr/`.
 ## Use the glossary's vocabulary
 
 When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis,
-a test name), use the term as defined in the relevant `CONTEXT.md`. Don't drift to synonyms the
+a test name), use the term as defined in the relevant `GLOSSARY.md`. Don't drift to synonyms the
 glossary explicitly avoids.
 
 If the concept you need isn't in the glossary yet, that's a signal — either you're inventing

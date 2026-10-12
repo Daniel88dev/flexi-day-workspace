@@ -1,17 +1,17 @@
-# Context map
+# Glossary map
 
-Four contexts, one per repo. Each keeps its glossary in its own `CONTEXT.md`, so the terms travel
+Four contexts, one per repo. Each keeps its glossary in its own `GLOSSARY.md`, so the terms travel
 to GitHub with the code they describe. This file is the index and nothing else. No term is defined
 here.
 
 ## Contexts
 
-- [flexi-day-be](./flexi-day-be/CONTEXT.md) — the vacation, attendance and organization domain as
+- [flexi-day-be](./flexi-day-be/GLOSSARY.md) — the vacation, attendance and organization domain as
   the backend models it. It owns the shared vocabulary; the other three borrow from it.
-- [flexi-day-rn](./flexi-day-rn/CONTEXT.md) — the iPhone app. Coins only what the phone needs
+- [flexi-day-rn](./flexi-day-rn/GLOSSARY.md) — the iPhone app. Coins only what the phone needs
   (local store, pending change) and uses the backend's words for everything else.
 - `flexi-day` — the web frontend. No glossary yet. The first frontend term that needs pinning down
-  goes in `flexi-day/CONTEXT.md`.
+  goes in `flexi-day/GLOSSARY.md`.
 - `flexi-day-emails` — the transactional email templates. No glossary yet, and it may never need
   one; the contract it has with the backend is in `flexi-day-emails/INTEGRATION.md`.
 
