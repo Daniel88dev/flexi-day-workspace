@@ -157,6 +157,64 @@ tool(
     })
 );
 
+const calendarProvider = z.enum(["google", "microsoft"]);
+
+tool(
+  "dev_calendar_connect",
+  {
+    title: "Connect a local user to the fake calendar driver",
+    description:
+      "Connects a seeded user to a fake Google or Microsoft calendar with no consent round, and makes or reuses the sync config that feeds it. Without configId it reuses the config this connection already feeds, or creates a ME config with every record type. Grants no plan: a Free user's target pauses (entitled: false). Answers 409 unless the backend runs CALENDAR_SYNC_DRIVER=fake with that provider's switch on. dev_seed_scenario already connects the owner when it can.",
+    inputSchema: {
+      email: z.string().optional().describe(`defaults to owner@${devConfig.seedDomain}`),
+      provider: calendarProvider.optional().describe("defaults to google"),
+      configId: z.string().optional().describe("an existing sync config of this user to target"),
+      timeZone: z.string().optional().describe("IANA zone; defaults to Europe/Prague"),
+    },
+  },
+  (args) =>
+    devApi("/calendar/connect", {
+      email: args.email ?? `owner@${devConfig.seedDomain}`,
+      provider: args.provider,
+      configId: args.configId,
+      timeZone: args.timeZone,
+    })
+);
+
+tool(
+  "dev_calendar_events",
+  {
+    title: "Read what the fake calendar driver received",
+    description:
+      "Returns events, every call the fake calendar driver received (operation INSERT/PATCH/DELETE, providerEventId, payload, result 'ok' or the failure), and ledger, the calendar_sync_events rows (one per target and day row). Both newest first, up to 500 each. An event is live when it has an ok INSERT and no ok DELETE. Rows go with their connection, so after a disconnect neither the inserts nor the purge's deletes show.",
+    inputSchema: {
+      email: z.string().optional().describe("one user's rows; omit for everyone's"),
+    },
+  },
+  (args) =>
+    devApi(`/calendar/events${args.email ? `?${new URLSearchParams({ email: args.email })}` : ""}`)
+);
+
+tool(
+  "dev_calendar_capability",
+  {
+    title: "Set a calendar connection's capability",
+    description:
+      "Sets a seeded user's calendar connection to PLAIN (no status event types, like personal Gmail), STATUS or UNKNOWN, and marks its targets due so the next sync rebuilds every event. Name the provider when the user has both connected. Returns targetsMarked, the config ids queued for resync.",
+    inputSchema: {
+      email: z.string().optional().describe(`defaults to owner@${devConfig.seedDomain}`),
+      provider: calendarProvider.optional(),
+      capability: z.enum(["PLAIN", "STATUS", "UNKNOWN"]),
+    },
+  },
+  (args) =>
+    devApi("/calendar/capability", {
+      email: args.email ?? `owner@${devConfig.seedDomain}`,
+      provider: args.provider,
+      capability: args.capability,
+    })
+);
+
 tool(
   "dev_reset",
   {

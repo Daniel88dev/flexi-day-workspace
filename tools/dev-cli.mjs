@@ -15,9 +15,14 @@ const flag = (name) => {
   return value;
 };
 
-const takesValue = (arg) => arg?.startsWith("--") && arg !== "--" && !arg.includes("=");
+const switches = new Set(["--", "--json"]);
 
-const positional = () => rest.find((arg, i) => !arg.startsWith("--") && !takesValue(rest[i - 1]));
+const takesValue = (arg) => arg?.startsWith("--") && !switches.has(arg) && !arg.includes("=");
+
+const positionals = () =>
+  rest.filter((arg, i) => !arg.startsWith("--") && !takesValue(rest[i - 1]));
+
+const positional = () => positionals()[0];
 
 const mark = (ok) => (ok ? "✅" : "❌");
 
@@ -102,6 +107,56 @@ const commands = {
     if (result.warning) console.log(`⚠️  ${result.warning}`);
   },
 
+  async "calendar:connect"() {
+    const result = await devApi("/calendar/connect", {
+      email: positional() ?? `owner@${devConfig.seedDomain}`,
+      provider: flag("provider"),
+      configId: flag("config"),
+      timeZone: flag("tz"),
+    });
+    console.log(`connection  ${result.connectionId} (${result.provider})`);
+    console.log(
+      `config      ${result.configId} (${result.configCreated ? "created" : "existing"})`
+    );
+    console.log(`time zone   ${result.timeZone}`);
+    console.log(`entitled    ${result.entitled ? "yes" : "no, the target pauses"}`);
+  },
+
+  async "calendar:events"() {
+    const email = positional();
+    const query = email ? `?${new URLSearchParams({ email })}` : "";
+    const result = await devApi(`/calendar/events${query}`);
+    if (rest.includes("--json")) {
+      console.log(JSON.stringify(result, null, 2));
+      return;
+    }
+    console.log(`fake driver calls (${result.events.length}, newest first)`);
+    for (const e of result.events) {
+      console.log(
+        `  ${e.createdAt}  ${e.operation.padEnd(6)} ${e.result}  ${e.providerEventId ?? "-"}`
+      );
+    }
+    console.log(`ledger rows (${result.ledger.length}, newest first)`);
+    for (const row of result.ledger) {
+      console.log(
+        `  ${row.updatedAt}  ${row.kind}  ${row.providerEventId ?? "-"}  vacation ${row.vacationId ?? "-"}`
+      );
+    }
+  },
+
+  async "calendar:capability"() {
+    const [capability, email] = positionals();
+    if (!capability) throw new Error("Name a capability: PLAIN, STATUS or UNKNOWN.");
+    const result = await devApi("/calendar/capability", {
+      email: email ?? `owner@${devConfig.seedDomain}`,
+      provider: flag("provider"),
+      capability: capability.toUpperCase(),
+    });
+    console.log(`connection  ${result.connectionId} (${result.provider})`);
+    console.log(`capability  ${result.capability}`);
+    console.log(`resynced    ${result.targetsMarked.length} target(s)`);
+  },
+
   async reset() {
     const result = await devApi("/reset", {});
     console.log(`deleted ${result.deleted.users} users and ${result.deleted.groups} teams`);
@@ -117,6 +172,12 @@ if (!command || !commands[command]) {
   login [email]                issue a session cookie for an existing local user
   login:rn [email] [--to /path] [--udid <udid>]
                                sign a local user into the iPhone app on a booted simulator
+  calendar:connect [email] [--provider google|microsoft] [--config <id>] [--tz <zone>]
+                               connect a seeded user to the fake calendar driver
+  calendar:events [email] [--json]
+                               what the fake driver received and the sync ledger, for one user or all
+  calendar:capability <PLAIN|STATUS|UNKNOWN> [email] [--provider google|microsoft]
+                               set a connection's capability and resync its targets
   reset                        delete every @${devConfig.seedDomain} account and its data
 `);
   process.exit(command ? 1 : 0);
