@@ -39,7 +39,8 @@ user keeps team scopes from older runs; run `npm run dev:reset` first when roles
 password it prints is always valid for every seeded account.
 
 Prefer the `flexi-dev` MCP tools (`stack_status`, `dev_seed_scenario`, `dev_login`, `dev_reset`) when
-they are available — same operations, no shell.
+they are available — same operations, no shell. Calendar direct sync has its own three, see
+"Calendar direct sync" below.
 
 ## 3. Sign in
 
@@ -86,6 +87,31 @@ tools, on the container's headless Chromium:
 
 Call `browser_take_screenshot` without a `filename`: snapshots and screenshots then land in
 `.playwright-mcp/`, which is gitignored, while a filename is written relative to the repo root.
+
+## Calendar direct sync
+
+Connecting a real Google or Microsoft calendar needs a consent screen no agent can pass, so the
+backend has a fake driver that records every call instead. Start the backend with
+`CALENDAR_SYNC_DRIVER=fake`, `CALENDAR_SYNC_GOOGLE_ENABLED=true` and any non-empty
+`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, or the Microsoft equivalents. Under any other driver
+the connect route answers 409.
+
+| MCP tool                  | CLI                                                                 | Does                                                                                          |
+| ------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `dev_calendar_connect`    | `npm run dev:calendar:connect -- [email] [--provider microsoft]`    | connects a seeded user to the fake provider, no consent round; also `--config`, `--tz`        |
+| `dev_calendar_events`     | `npm run dev:calendar:events -- [email] [--json]`                   | the calls the fake driver received and the sync ledger, newest first; all users without email |
+| `dev_calendar_capability` | `npm run dev:calendar:capability -- PLAIN [email] [--provider ...]` | sets the connection to `PLAIN`, `STATUS` or `UNKNOWN` and resyncs its targets                 |
+
+The email defaults to `owner@dev.local` for connect and capability. `dev:scenario` already connects
+the owner to a fake Google target when it can, with a Pro override so the target runs, and reports
+it as `calendar`. `dev_calendar_connect` grants no plan: on a Free organization the target pauses,
+which is how to reach the `PAUSED` card.
+
+The loop: seed, sign in as the owner, approve a pending booking, then read `dev_calendar_events`
+for the owner and look for an `INSERT` with result `ok`. An event is live while it has an ok
+`INSERT` and no ok `DELETE`. `PLAIN` makes the fake refuse status event types, like a personal
+Gmail account. The syncing runs in the background, so poll the events for a few seconds rather
+than reading once.
 
 ## 5. Clean up
 
