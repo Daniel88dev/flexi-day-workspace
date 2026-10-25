@@ -1,0 +1,786 @@
+<!doctype html>
+<!--
+  PROTOTYPE, throwaway. Branch prototype/directory-iphone, never merged.
+  Question: how should the read-only directory and profile look on the iPhone app
+  (T-479, https://www.fenro-dashboard.com/tasks/T-479)?
+  One file, fake data, state in memory. Open it in a browser, or serve the folder with
+  `python3 -m http.server`. The bar under the phone switches viewer, plan, theme, language,
+  read state and two layout variants (directory rows/cards, profile tabs/one scroll).
+  URL hash keeps the state, e.g. #role=hr&go=person/eva&tab=contact&show=contact
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PROTOTYPE · Directory on the iPhone</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+    <style>
+      /* Tokens copied from flexi-day-rn/src/theme.css */
+      .phone {
+        --bg: oklch(0.985 0.008 78);
+        --bg-tint: oklch(0.965 0.012 78);
+        --surface: oklch(0.998 0.004 80);
+        --surface-2: oklch(0.972 0.009 78);
+        --border: oklch(0.915 0.01 80);
+        --input: oklch(0.86 0.012 80);
+        --text: oklch(0.26 0.018 290);
+        --muted: oklch(0.52 0.014 288);
+        --faint: oklch(0.66 0.012 288);
+        --primary: oklch(0.55 0.165 285);
+        --primary-strong: oklch(0.48 0.165 285);
+        --primary-fg: oklch(0.99 0.01 285);
+        --accent: oklch(0.55 0.165 285 / 0.1);
+        --warm: oklch(0.66 0.14 42);
+        --warm-soft: oklch(0.66 0.14 42 / 0.12);
+        --danger: oklch(0.58 0.18 25);
+        --danger-soft: oklch(0.58 0.18 25 / 0.12);
+        --ok: oklch(0.58 0.13 155);
+        --ok-soft: oklch(0.58 0.13 155 / 0.14);
+        --review: oklch(0.55 0.13 240);
+        --review-soft: oklch(0.55 0.13 240 / 0.12);
+        --scrim: rgba(0, 0, 0, 0.38);
+      }
+      .phone.dark {
+        --bg: oklch(0.165 0.013 288);
+        --bg-tint: oklch(0.195 0.014 288);
+        --surface: oklch(0.205 0.015 288);
+        --surface-2: oklch(0.245 0.016 288);
+        --border: oklch(0.295 0.016 288);
+        --input: oklch(0.36 0.018 288);
+        --text: oklch(0.96 0.006 288);
+        --muted: oklch(0.72 0.012 288);
+        --faint: oklch(0.58 0.012 288);
+        --primary: oklch(0.68 0.165 285);
+        --primary-strong: oklch(0.74 0.165 285);
+        --primary-fg: oklch(0.16 0.02 285);
+        --accent: oklch(0.68 0.165 285 / 0.16);
+        --warm: oklch(0.74 0.13 44);
+        --warm-soft: oklch(0.74 0.13 44 / 0.16);
+        --danger: oklch(0.7 0.16 25);
+        --danger-soft: oklch(0.7 0.16 25 / 0.16);
+        --ok: oklch(0.72 0.13 155);
+        --ok-soft: oklch(0.72 0.13 155 / 0.16);
+        --review: oklch(0.74 0.11 240);
+        --review-soft: oklch(0.74 0.11 240 / 0.16);
+        --scrim: rgba(0, 0, 0, 0.55);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #e9e6e1;
+        font-family: "Hanken Grotesk", system-ui, sans-serif;
+        color: #222;
+        min-height: 100vh;
+      }
+      body.darkpage { background: #2a2830; color: #ddd; }
+      .stage { display: flex; gap: 28px; justify-content: center; align-items: flex-start; padding: 24px 24px 150px; }
+      .phone {
+        width: 393px; height: 852px; border-radius: 56px; position: relative; overflow: hidden;
+        background: var(--bg); color: var(--text); flex: none;
+        box-shadow: 0 0 0 11px #111, 0 0 0 13px #444, 0 30px 60px rgba(0,0,0,.35);
+        font-size: 15px;
+      }
+      .island { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 124px; height: 36px; background: #000; border-radius: 20px; z-index: 50; }
+      .status { position: absolute; top: 0; left: 0; right: 0; height: 54px; display: flex; justify-content: space-between; align-items: center; padding: 6px 34px 0 46px; font-weight: 600; font-size: 16px; z-index: 40; }
+      .status .r { display: flex; gap: 6px; font-size: 15px; }
+      .homebar { position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%); width: 136px; height: 5px; border-radius: 3px; background: var(--text); opacity: .85; z-index: 60; }
+      .screen { position: absolute; inset: 54px 0 0 0; display: flex; flex-direction: column; }
+      .scroll { flex: 1; overflow-y: auto; scrollbar-width: none; padding: 0 16px 40px; }
+      .scroll::-webkit-scrollbar { display: none; }
+      .disp { font-family: "Bricolage Grotesque", system-ui, sans-serif; }
+      .h1 { font-family: "Bricolage Grotesque"; font-size: 28px; font-weight: 600; letter-spacing: -0.56px; margin: 0; line-height: 34px; }
+      .stackhead { height: 56px; display: flex; align-items: center; gap: 4px; padding: 0 12px; flex: none; }
+      .back { height: 40px; display: flex; align-items: center; gap: 2px; border: 0; background: none; color: var(--text); font: inherit; font-size: 16px; cursor: pointer; padding: 0 8px 0 0; }
+      .back i { font-size: 22px; }
+      .stitle { font-family: "Bricolage Grotesque"; font-size: 19px; font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .ic { font-size: 20px; color: var(--muted); }
+      .card { background: var(--surface); border-radius: 24px; overflow: hidden; }
+      .label { font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--faint); padding: 0 16px 6px; display: flex; justify-content: space-between; gap: 8px; }
+      .label .sub { text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 11.5px; }
+      .foot { font-size: 12.5px; line-height: 18px; color: var(--faint); padding: 8px 16px 0; }
+      .row { min-height: 52px; display: flex; align-items: center; gap: 12px; padding: 8px 16px; position: relative; }
+      .row + .row::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; height: 1px; background: var(--border); }
+      .row.tap { cursor: pointer; }
+      .row.tap:active { opacity: .7; }
+      .kv { flex: 1; min-width: 0; }
+      .k { font-size: 12.5px; color: var(--faint); }
+      .v { font-size: 15.5px; font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+      .v.link { color: var(--primary); }
+      .v.muted { color: var(--faint); font-weight: 500; font-style: italic; }
+      .chev { color: var(--faint); font-size: 16px; }
+      .gap { height: 24px; }
+      .gap-s { height: 12px; }
+      .pill { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+      .pill.p { background: var(--accent); color: var(--primary-strong); }
+      .pill.w { background: var(--warm-soft); color: var(--warm); }
+      .pill.d { background: var(--danger-soft); color: var(--danger); }
+      .pill.r { background: var(--review-soft); color: var(--review); }
+      .pill.n { background: var(--surface-2); color: var(--muted); }
+      .pill.ok { background: var(--ok-soft); color: var(--ok); }
+      .btn { height: 40px; border-radius: 999px; border: 0; padding: 0 16px; font: inherit; font-weight: 600; font-size: 14.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+      .btn.pri { background: var(--primary); color: var(--primary-fg); }
+      .btn.sec { background: var(--accent); color: var(--primary-strong); }
+      .btn.ghost { background: none; color: var(--primary); padding: 0 8px; }
+      .btn:disabled { opacity: .5; }
+      .av { border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; flex: none; overflow: hidden; position: relative; }
+      .av svg { width: 100%; height: 100%; }
+      .search { height: 40px; border-radius: 12px; background: var(--surface-2); display: flex; align-items: center; gap: 8px; padding: 0 12px; color: var(--faint); }
+      .search input { border: 0; background: none; font: inherit; font-size: 15.5px; color: var(--text); flex: 1; outline: none; min-width: 0; }
+      .search input::placeholder { color: var(--faint); }
+      .chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding: 10px 0 2px; }
+      .chip { height: 32px; border-radius: 999px; padding: 0 12px; display: inline-flex; align-items: center; gap: 4px; font-size: 13.5px; font-weight: 600; background: var(--surface); color: var(--muted); border: 1px solid var(--border); white-space: nowrap; cursor: pointer; flex: none; }
+      .chip.on { background: var(--accent); color: var(--primary-strong); border-color: transparent; }
+      .seg { display: flex; border-radius: 999px; background: var(--surface-2); padding: 4px; }
+      .seg button { flex: 1; height: 34px; border: 0; background: none; border-radius: 999px; font: inherit; font-weight: 600; font-size: 13.5px; color: var(--muted); cursor: pointer; white-space: nowrap; padding: 0 6px; }
+      .seg button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+      .tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px; }
+      .tabs button { height: 34px; border-radius: 999px; padding: 0 14px; border: 0; background: var(--surface-2); color: var(--muted); font: inherit; font-weight: 600; font-size: 14px; cursor: pointer; white-space: nowrap; flex: none; display: inline-flex; align-items: center; gap: 5px; }
+      .tabs button.on { background: var(--text); color: var(--bg); }
+      .tabs button i { font-size: 13px; }
+      .notice { border-radius: 16px; padding: 12px 14px; font-size: 13.5px; line-height: 19px; display: flex; gap: 10px; align-items: flex-start; }
+      .notice i { font-size: 18px; margin-top: 1px; flex: none; }
+      .notice.w { background: var(--warm-soft); color: var(--text); }
+      .notice.w i { color: var(--warm); }
+      .notice.p { background: var(--accent); }
+      .notice.p i { color: var(--primary); }
+      .notice.d { background: var(--danger-soft); }
+      .notice.d i { color: var(--danger); }
+      .lockbox { padding: 18px 16px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+      .lockbox .t { font-weight: 600; display: flex; gap: 8px; align-items: center; }
+      .lockbox .s { font-size: 13px; color: var(--faint); line-height: 18px; }
+      .logline { font-size: 12px; color: var(--faint); display: flex; gap: 6px; align-items: center; padding: 8px 16px 0; }
+      .skel { background: var(--surface-2); border-radius: 999px; }
+      @keyframes pulse { 50% { opacity: .5; } }
+      .skel, .pulse { animation: pulse 1.4s ease-in-out infinite; }
+      .spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--accent); border-top-color: var(--primary); animation: sp .8s linear infinite; }
+      @keyframes sp { to { transform: rotate(360deg); } }
+      .sheetwrap { position: absolute; inset: 0; z-index: 70; display: flex; flex-direction: column; justify-content: flex-end; }
+      .scrimbg { position: absolute; inset: 0; background: var(--scrim); }
+      .sheet { position: relative; background: var(--surface); border-radius: 28px 28px 0 0; padding: 10px 12px 40px; max-height: 80%; overflow-y: auto; }
+      .grab { width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 0 auto 8px; }
+      .mrow { height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border-radius: 16px; font-weight: 600; font-size: 15.5px; color: var(--muted); cursor: pointer; }
+      .mrow:hover { background: var(--bg-tint); }
+      .mrow.hl { background: var(--accent); color: var(--primary-strong); }
+      .mrow.hl i { color: var(--primary); }
+      .mlabel { padding: 16px 12px 6px; font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--faint); text-transform: uppercase; }
+      .actsheet { position: relative; padding: 0 8px 34px; display: flex; flex-direction: column; gap: 8px; }
+      .actsheet .grp { background: var(--surface); border-radius: 14px; overflow: hidden; }
+      .actsheet .ttl { text-align: center; font-size: 13px; color: var(--faint); padding: 12px 16px; }
+      .actsheet button { display: block; width: 100%; height: 56px; border: 0; border-top: 1px solid var(--border); background: none; font: inherit; font-size: 19px; color: var(--primary); cursor: pointer; }
+      .actsheet .grp button:first-child.first { border-top: 0; }
+      .actsheet .cancel { font-weight: 600; border-top: 0; }
+      .tabbar { flex: none; display: flex; align-items: flex-end; justify-content: space-around; background: var(--surface); border-top: 1px solid var(--border); height: 84px; padding: 6px 4px 30px; }
+      .tb { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 10.5px; font-weight: 600; color: var(--faint); width: 64px; cursor: pointer; }
+      .tb i { font-size: 24px; }
+      .tb.on { color: var(--primary); }
+      .disc { width: 58px; height: 58px; border-radius: 50%; background: var(--primary); color: var(--primary-fg); display: flex; align-items: center; justify-content: center; font-size: 26px; margin-top: -26px; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+      .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .pcard { background: var(--surface); border-radius: 24px; padding: 16px 12px 14px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; cursor: pointer; position: relative; }
+      .pcard .n { font-weight: 700; font-size: 14.5px; margin-top: 6px; }
+      .pcard .s { font-size: 12.5px; color: var(--muted); line-height: 16px; }
+      .pcard .ch { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+      .qa { display: flex; gap: 8px; }
+      .qa button { flex: 1; height: 58px; border-radius: 16px; border: 0; background: var(--surface); color: var(--primary); font: inherit; font-size: 12.5px; font-weight: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; cursor: pointer; }
+      .qa button i { font-size: 21px; }
+      .qa button:disabled { color: var(--faint); opacity: .55; }
+      .privacy { position: absolute; inset: 0; z-index: 90; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+      .logo { width: 64px; height: 64px; border-radius: 18px; background: var(--primary); color: var(--primary-fg); display: flex; align-items: center; justify-content: center; font-family: "Bricolage Grotesque"; font-weight: 800; font-size: 28px; }
+      .viewer { position: absolute; inset: 0; z-index: 80; background: #000; display: flex; flex-direction: column; }
+      .toast { position: absolute; left: 16px; right: 16px; bottom: 44px; z-index: 95; background: var(--text); color: var(--bg); border-radius: 16px; padding: 12px 14px; font-size: 14px; font-weight: 600; }
+      .dash-card { background: var(--surface); border-radius: 24px; padding: 16px; }
+      /* side panel */
+      .side { width: 380px; font-size: 13px; line-height: 1.45; }
+      .side h3 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .8px; color: #8a6d00; }
+      body.darkpage .side h3 { color: #e5c454; }
+      .panel { background: #fffbe8; border: 1px solid #eadf9c; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; color: #3a3420; }
+      body.darkpage .panel { background: #34301f; border-color: #5a5130; color: #eee5c4; }
+      body.darkpage .panel a { color: #9cc3ff; }
+      .panel ul { margin: 4px 0 0; padding-left: 18px; }
+      .panel li { margin: 2px 0; }
+      .panel table { border-collapse: collapse; width: 100%; font-size: 12px; }
+      .panel td { padding: 2px 4px; border-bottom: 1px solid rgba(0,0,0,.07); }
+      .lv-none { color: #999; }
+      .lv-read { color: #2a6bb5; font-weight: 600; }
+      .lv-write { color: #8a3fb5; font-weight: 600; }
+      .panel code { font-size: 11.5px; background: rgba(0,0,0,.06); padding: 0 3px; border-radius: 3px; }
+      /* control bar */
+      .bar { position: fixed; left: 0; right: 0; bottom: 0; background: #17161b; color: #eee; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: center; font-size: 12.5px; z-index: 999; box-shadow: 0 -4px 16px rgba(0,0,0,.3); }
+      .bar .g { display: flex; align-items: center; gap: 4px; }
+      .bar .g > span { color: #9a98a6; margin-right: 2px; }
+      .bar button { background: #2c2a33; color: #ddd; border: 0; border-radius: 6px; padding: 5px 8px; font: inherit; cursor: pointer; }
+      .bar button.on { background: #7b5cff; color: #fff; }
+      .bar select { background: #2c2a33; color: #eee; border: 0; border-radius: 6px; padding: 5px; font: inherit; }
+      .tag { position: absolute; top: 6px; right: 8px; font-size: 9px; font-weight: 800; letter-spacing: .5px; color: #8a6d00; background: #ffe98a; border-radius: 4px; padding: 0 4px; z-index: 5; }
+    </style>
+  </head>
+  <body>
+    <div class="stage">
+      <div class="phone" id="phone"></div>
+      <div class="side" id="side"></div>
+    </div>
+    <div class="bar" id="bar"></div>
+
+    <script>
+      // ---------- strings ----------
+      const D = {
+        en: {
+          dashboard: "Dashboard", requests: "Requests", myAttendance: "My attendance", more: "More", report: "Report", groups: "Groups", settings: "Settings", signOut: "Sign out",
+          timeOff: "Time off", attendance: "Attendance", people: "People", directory: "Directory",
+          search: "Search name or job title", dept: "Department", loc: "Location", type: "Type", any: "Any", employees: "Employees", externals: "External workers",
+          current: "Current", former: "Former", nPeople: (n) => `${n} ${n === 1 ? "person" : "people"}`, you: "You",
+          external: "External worker", noAccount: "No account", inviteSent: "Invite sent", accountDeleted: "Account deleted", rejoined: "Rejoined", hold: "Retention hold",
+          tab_overview: "Overview", tab_job: "Job", tab_contact: "Contact", tab_personal: "Personal", tab_record: "Record",
+          sec_card: "Card", sec_photo: "Photo", sec_workContact: "Work contact", sec_job: "Job", sec_contact: "Contact", sec_personal: "Personal",
+          f_title: "Job title", f_dept: "Department", f_loc: "Location", f_reportsTo: "Reports to", f_workEmail: "Work email", f_workPhone: "Work phone",
+          f_legal: "Legal name", f_number: "Employee number", f_start: "Start date", f_probation: "Probation end date", f_leaving: "Leaving date", f_contract: "Contract type", f_wt: "Working time",
+          f_pphone: "Private phone", f_pemail: "Private email", f_ec: (i) => `Emergency contact ${i}`, f_address: "Home address", f_dob: "Date of birth",
+          f_type: "Type", f_spell: "Employment", f_account: "Account", f_signIn: "Sign-in email", f_roles: "Directory roles",
+          employee: "Employee", bound: "Signed in with Flexi Day", none: "None",
+          ct_permanent: "Permanent", ct_fixed: "Fixed-term", wt_full: "Full-time", wt_part: "Part-time",
+          hiddenTitle: "Hidden until you open it", hiddenBody: "Opening it is recorded in the read log.", show: "Show",
+          logged: "Your view of this section is recorded in the read log.", notSet: "Not set", showFailed: "Couldn't load this section.", retry: "Retry",
+          call: "Call", email: "Email", copy: "Copy", cancel: "Cancel", message: "Message",
+          selfHint: "This is your profile at Acme s.r.o. You change it on the web.", openWeb: "Edit on the web",
+          selfHintLapsed: "Acme s.r.o.'s plan no longer includes the directory. On the web you can still clear your details.",
+          lapsed: "Acme s.r.o. is no longer on Enterprise. Profiles stay readable here, and nothing new can be added.",
+          lapsedAdmin: "Plans are managed on the web.",
+          unreachable: "Can't reach the server. The directory is read live and isn't kept on this phone.",
+          noMatch: "No one matches", clearFilters: "Clear search and filters",
+          formerSince: (d) => `Former · ended ${d}`, ended: (d) => `Ended ${d}`, nextRemoval: (s, d) => `${s} removed ${d}`,
+          removedOn: (d) => `Removed by retention on ${d}`, dueOn: (d) => `Removed on ${d}`, keep: "Kept until erased", heldNo: "On hold, nothing is removed",
+          retention: "Retention", holdBy: (b, d) => `Hold set by ${b} on ${d}`,
+          upsellTitle: "The directory is on Enterprise", upsellBody: "Profiles, departments and a staff directory for everyone in Acme s.r.o. Plans are managed on the web.", seePlans: "See plans on the web",
+          ent: "Enterprise", proto: "Prototype", copied: "Copied", openingWeb: "Opens the web edit page in a browser sheet", calling: (v) => `Calls ${v} through iOS`, mailing: (v) => `Opens Mail to ${v}`,
+          reportsHidden: "Reports to someone you can't see",
+        },
+        cs: {
+          dashboard: "Přehled", requests: "Žádosti", myAttendance: "Moje docházka", more: "Více", report: "Report", groups: "Skupiny", settings: "Nastavení", signOut: "Odhlásit se",
+          timeOff: "Volno", attendance: "Docházka", people: "Lidé", directory: "Adresář",
+          search: "Hledat jméno nebo pozici", dept: "Oddělení", loc: "Pracoviště", type: "Typ", any: "Vše", employees: "Zaměstnanci", externals: "Externí spolupracovníci",
+          current: "Současní", former: "Bývalí", nPeople: (n) => `${n} ${n === 1 ? "osoba" : n < 5 ? "osoby" : "osob"}`, you: "Vy",
+          external: "Externí spolupracovník", noAccount: "Bez účtu", inviteSent: "Pozvánka odeslána", accountDeleted: "Účet smazán", rejoined: "Znovu nastoupil(a)", hold: "Pozastavený výmaz",
+          tab_overview: "Přehled", tab_job: "Poměr", tab_contact: "Kontakt", tab_personal: "Osobní", tab_record: "Záznam",
+          sec_card: "Vizitka", sec_photo: "Fotografie", sec_workContact: "Pracovní kontakt", sec_job: "Pracovní poměr", sec_contact: "Soukromý kontakt", sec_personal: "Osobní údaje",
+          f_title: "Pracovní pozice", f_dept: "Oddělení", f_loc: "Pracoviště", f_reportsTo: "Nadřízený", f_workEmail: "Pracovní e-mail", f_workPhone: "Pracovní telefon",
+          f_legal: "Úřední jméno", f_number: "Osobní číslo", f_start: "Datum nástupu", f_probation: "Konec zkušební doby", f_leaving: "Datum odchodu", f_contract: "Typ smlouvy", f_wt: "Pracovní úvazek",
+          f_pphone: "Soukromý telefon", f_pemail: "Soukromý e-mail", f_ec: (i) => `Kontakt pro případ nouze ${i}`, f_address: "Adresa bydliště", f_dob: "Datum narození",
+          f_type: "Typ", f_spell: "Pracovní poměr", f_account: "Účet", f_signIn: "Přihlašovací e-mail", f_roles: "Role v adresáři",
+          employee: "Zaměstnanec", bound: "Přihlášen(a) přes Flexi Day", none: "Žádné",
+          ct_permanent: "Na dobu neurčitou", ct_fixed: "Na dobu určitou", wt_full: "Plný úvazek", wt_part: "Částečný úvazek",
+          hiddenTitle: "Skryto, dokud to neotevřete", hiddenBody: "Otevření se zapíše do záznamu čtení.", show: "Zobrazit",
+          logged: "Vaše zobrazení této části se zapisuje do záznamu čtení.", notSet: "Nevyplněno", showFailed: "Tuto část se nepodařilo načíst.", retry: "Zkusit znovu",
+          call: "Volat", email: "E-mail", copy: "Kopírovat", cancel: "Zrušit", message: "Zpráva",
+          selfHint: "Toto je váš profil v Acme s.r.o. Upravujete ho na webu.", openWeb: "Upravit na webu",
+          selfHintLapsed: "Tarif Acme s.r.o. už adresář nezahrnuje. Na webu můžete své údaje stále vymazat.",
+          lapsed: "Acme s.r.o. už nemá Enterprise. Profily tu zůstávají ke čtení, nic nového nelze přidat.",
+          lapsedAdmin: "Tarify se spravují na webu.",
+          unreachable: "Nelze se spojit se serverem. Adresář se načítá živě a v telefonu se neukládá.",
+          noMatch: "Nikdo neodpovídá", clearFilters: "Vymazat hledání a filtry",
+          formerSince: (d) => `Bývalý · odchod ${d}`, ended: (d) => `Odchod ${d}`, nextRemoval: (s, d) => `${s}: výmaz ${d}`,
+          removedOn: (d) => `Vymazáno po uplynutí doby uchování ${d}`, dueOn: (d) => `Bude vymazáno ${d}`, keep: "Uchováno do výmazu", heldNo: "Výmaz pozastaven, nic se nemaže",
+          retention: "Uchování", holdBy: (b, d) => `Výmaz pozastavil(a) ${b} ${d}`,
+          upsellTitle: "Adresář je v tarifu Enterprise", upsellBody: "Profily, oddělení a adresář všech lidí v Acme s.r.o. Tarify se spravují na webu.", seePlans: "Zobrazit tarify na webu",
+          ent: "Enterprise", proto: "Prototyp", copied: "Zkopírováno", openingWeb: "Otevře webovou úpravu v prohlížeči", calling: (v) => `Zavolá ${v} přes iOS`, mailing: (v) => `Otevře Mail pro ${v}`,
+          reportsHidden: "Nadřízený, kterého nevidíte",
+        },
+      };
+      const t = (k, ...a) => { const v = D[S.lang][k] ?? D.en[k] ?? k; return typeof v === "function" ? v(...a) : v; };
+
+      // ---------- fake data (from prototype/directory-web) ----------
+      const TODAY = "2026-10-25";
+      const MON = { en: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] };
+      const fd = (iso) => { if (!iso) return ""; const [y, m, d] = iso.split("-").map(Number); return S.lang === "cs" ? `${d}. ${m}. ${y}` : `${d} ${MON.en[m - 1]} ${y}`; };
+      function addP(iso, p) {
+        const d = new Date(iso + "T00:00:00Z");
+        if (p === "30d") d.setUTCDate(d.getUTCDate() + 30);
+        else if (p === "1y") d.setUTCFullYear(d.getUTCFullYear() + 1);
+        else if (p === "3y") d.setUTCFullYear(d.getUTCFullYear() + 3);
+        return d.toISOString().slice(0, 10);
+      }
+      const RET = { card: "forever", job: "forever", workContact: "30d", contact: "30d", personal: "3y", photo: "1y" };
+      const DEPTS = { eng: ["Engineering", "Vývoj"], sup: ["Customer support & operations", "Zákaznická podpora a provoz"], fin: ["Finance & HR", "Finance a HR"], ops: ["Warehouse", "Sklad"], sal: ["Sales", "Obchod"], mkt: ["Marketing (archived)", "Marketing (archivováno)"] };
+      const LOCS = { prg: "Prague HQ", brn: "Brno warehouse", ber: "Berlin office", rem: "Remote" };
+      const COUNTRY = { CZ: ["Czechia", "Česko"], DE: ["Germany", "Německo"] };
+      const deptName = (id) => (DEPTS[id] ? DEPTS[id][S.lang === "cs" ? 1 : 0] : "");
+      const locName = (id) => LOCS[id] || "";
+      const E = () => ({ phone: "", email: "", ec: [{ name: "", phone: "" }, { name: "", phone: "" }] });
+      const PE = () => ({ a1: "", a2: "", postal: "", city: "", region: "", country: "", dob: "" });
+      const J = (o = {}) => ({ legal: "", number: "", start: "", probation: "", leaving: "", contract: "", wt: "", ...o });
+      const person = (o) => ({ type: "employee", account: "bound", ended: null, groups: [], manages: [], roles: [], orgAdmin: false, owner: false, hold: null, photo: null, acct: null, removed: {}, rejoinedAs: null, work: { email: "", phone: "" }, job: J(), contact: E(), personal: PE(), ...o });
+      const PEOPLE = [
+        person({ id: "richard", name: "Richard Kolář", email: "richard@acme.cz", owner: true, start: "2019-01-07", photo: 40, acct: 200, card: { title: "Managing director", dept: "fin", loc: "prg", reportsTo: "" }, work: { email: "richard.kolar@acme.cz", phone: "+420 602 111 000" }, job: J({ number: "A-0001", start: "2019-01-07", contract: "permanent", wt: "full" }) }),
+        person({ id: "martin", name: "Martin Svoboda", email: "martin.svoboda@gmail.com", orgAdmin: true, start: "2020-05-01", acct: 150, card: { title: "Operations manager", dept: "ops", loc: "prg", reportsTo: "richard" }, work: { email: "martin.svoboda@acme.cz", phone: "+420 602 111 020" }, job: J({ number: "A-0007", start: "2020-05-01", contract: "permanent", wt: "full" }) }),
+        person({ id: "lucie", name: "Lucie Králová", email: "lucie.kralova@acme.cz", roles: ["hr"], start: "2021-02-01", photo: 330, card: { title: "HR manager", dept: "fin", loc: "prg", reportsTo: "richard" }, work: { email: "lucie.kralova@acme.cz", phone: "+420 602 111 030" }, job: J({ number: "A-0012", start: "2021-02-01", contract: "permanent", wt: "full" }) }),
+        person({ id: "tomas", name: "Tomáš Novák", email: "tomas@novak.dev", roles: ["leadership"], start: "2020-09-01", acct: 250, card: { title: "Head of engineering", dept: "eng", loc: "prg", reportsTo: "richard" }, work: { email: "tomas.novak@acme.cz", phone: "+420 602 111 040" }, job: J({ number: "A-0009", start: "2020-09-01", contract: "permanent", wt: "full" }) }),
+        person({ id: "jakub", name: "Jakub Procházka", email: "jakub.prochazka@acme.cz", start: "2023-03-01", groups: ["eng"], card: { title: "Backend developer", dept: "eng", loc: "rem", reportsTo: "tomas" }, work: { email: "jakub.prochazka@acme.cz", phone: "" }, job: J({ number: "A-0031", start: "2023-03-01", contract: "permanent", wt: "full" }) }),
+        person({ id: "marketa", name: "Markéta Černá", email: "marketa.cerna@acme.cz", start: "2022-01-10", manages: ["support"], photo: 20, card: { title: "Support team lead", dept: "sup", loc: "prg", reportsTo: "martin" }, work: { email: "marketa.cerna@acme.cz", phone: "+420 602 111 050" }, job: J({ number: "A-0018", start: "2022-01-10", contract: "permanent", wt: "full" }) }),
+        person({ id: "eva", name: "Eva Horáková", email: "eva.horakova@seznam.cz", start: "2024-03-01", groups: ["support"], photo: 300, acct: 90, card: { title: "Support specialist", dept: "sup", loc: "prg", reportsTo: "marketa" }, work: { email: "eva.horakova@acme.cz", phone: "+420 602 111 061" }, job: J({ legal: "Eva Horáková Nováková", number: "A-0044", start: "2024-03-01", probation: "2024-06-01", contract: "permanent", wt: "part" }), contact: { phone: "+420 777 123 456", email: "eva.h@seznam.cz", ec: [{ name: "Petr Horák", phone: "+420 731 222 333" }, { name: "", phone: "" }] }, personal: { a1: "Vinohradská 1234/56", a2: "", postal: "130 00", city: "Praha 3", region: "Hlavní město Praha", country: "CZ", dob: "1994-07-18" } }),
+        person({ id: "hana", name: "Hana Marková", email: "hana.markova@email.cz", start: "2026-10-01", groups: ["support"], acct: 60, card: { title: "Seasonal support agent", dept: "sup", loc: "brn", reportsTo: "marketa" }, job: J({ start: "2026-10-01", contract: "fixed", wt: "full" }) }),
+        person({ id: "karel", name: "Karel Dvořák", email: "karel.dvorak@email.cz", account: "deleted", start: "2018-04-01", groups: ["support"], card: { title: "Warehouse operator", dept: "ops", loc: "brn", reportsTo: "martin" }, work: { email: "", phone: "+420 602 111 090" }, job: J({ number: "A-0003", start: "2018-04-01", leaving: "2026-10-20", contract: "permanent", wt: "full" }), contact: { phone: "+420 604 555 444", email: "", ec: [{ name: "Jana Dvořáková", phone: "+420 604 555 445" }, { name: "", phone: "" }] } }),
+        person({ id: "petra", name: "Petra Veselá", email: "", account: "none", start: "2026-09-15", card: { title: "Warehouse operator", dept: "ops", loc: "brn", reportsTo: "martin" }, job: J({ number: "A-0052", start: "2026-09-15", probation: "2026-12-15", contract: "fixed", wt: "full" }) }),
+        person({ id: "lenka", name: "Lenka Dušková", email: "lenka.duskova@email.cz", account: "invited", start: "2026-10-20", card: { title: "Accountant", dept: "fin", loc: "prg", reportsTo: "lucie" }, job: J({ start: "2026-11-01", contract: "permanent", wt: "full" }) }),
+        person({ id: "jonas", name: "Jonas Weber", email: "jonas@weber-design.de", type: "external", start: "2025-11-01", groups: ["eng"], photo: 210, card: { title: "Freelance product designer", dept: "eng", loc: "ber", reportsTo: "tomas" }, work: { email: "jonas@weber-design.de", phone: "+49 151 2345 6789" }, job: J({ start: "2025-11-01" }), contact: { phone: "+49 151 2345 6789", email: "", ec: [{ name: "", phone: "" }, { name: "", phone: "" }] } }),
+        person({ id: "anna", name: "Anna Schmidt", email: "anna.schmidt@acme.de", start: "2025-02-01", photo: 120, card: { title: "Account executive", dept: "sal", loc: "ber", reportsTo: "richard" }, work: { email: "anna.schmidt@acme.de", phone: "+49 30 1234 5670" }, job: J({ number: "B-0002", start: "2025-02-01", contract: "permanent", wt: "full" }) }),
+        // former
+        person({ id: "ondrej", name: "Ondřej Malý", email: "ondrej.maly@gmail.com", start: "2022-06-01", ended: "2026-09-30", photo: 170, card: { title: "QA engineer", dept: "eng", loc: "prg", reportsTo: "" }, work: { email: "ondrej.maly@acme.cz", phone: "+420 602 111 070" }, job: J({ number: "A-0025", start: "2022-06-01", leaving: "2026-09-30", contract: "permanent", wt: "full" }), contact: { phone: "+420 720 999 888", email: "ondra.maly@gmail.com", ec: [{ name: "Lenka Malá", phone: "+420 720 999 887" }, { name: "", phone: "" }] }, personal: { a1: "Lidická 12", a2: "", postal: "602 00", city: "Brno", region: "Jihomoravský kraj", country: "CZ", dob: "1990-02-11" } }),
+        person({ id: "veronika", name: "Veronika Pokorná", email: "veronika.p@email.cz", start: "2021-09-01", ended: "2026-06-15", photo: 0, removed: { workContact: "2026-07-15", contact: "2026-07-15" }, card: { title: "Marketing specialist", dept: "mkt", loc: "prg", reportsTo: "" }, job: J({ number: "A-0021", start: "2021-09-01", leaving: "2026-06-15", contract: "permanent", wt: "full" }), personal: { a1: "Korunní 5", a2: "", postal: "120 00", city: "Praha 2", region: "", country: "CZ", dob: "1988-12-01" } }),
+        person({ id: "filip", name: "Filip Beneš", email: "filip.benes@email.cz", account: "deleted", start: "2017-03-01", ended: "2025-12-31", hold: { by: "Martin Svoboda", at: "2026-02-03" }, card: { title: "Accountant", dept: "fin", loc: "prg", reportsTo: "" }, work: { email: "filip.benes@acme.cz", phone: "+420 602 111 080" }, job: J({ number: "A-0002", start: "2017-03-01", contract: "permanent", wt: "full" }), contact: { phone: "+420 603 444 333", email: "", ec: [{ name: "", phone: "" }, { name: "", phone: "" }] }, personal: { a1: "Masarykova 8", a2: "", postal: "301 00", city: "Plzeň", region: "Plzeňský kraj", country: "CZ", dob: "1979-05-30" } }),
+        person({ id: "hana0", name: "Hana Marková", email: "hana.markova@email.cz", start: "2025-04-01", ended: "2026-03-31", photo: 60, rejoinedAs: "hana", removed: { workContact: "2026-04-30", contact: "2026-04-30" }, card: { title: "Seasonal support agent", dept: "sup", loc: "brn", reportsTo: "" }, job: J({ number: "A-0047", start: "2025-04-01", contract: "fixed", wt: "full" }), personal: { a1: "Cejl 40", a2: "byt 12", postal: "602 00", city: "Brno", region: "Jihomoravský kraj", country: "CZ", dob: "2001-09-09" } }),
+      ];
+      const P = Object.fromEntries(PEOPLE.map((p) => [p.id, p]));
+      const VIEWERS = { self: "eva", colleague: "jakub", external: "jonas", groupAdmin: "marketa", hr: "lucie", leadership: "tomas", orgAdmin: "martin", owner: "richard" };
+      const VIEWER_LABEL = { self: "Self (Eva)", colleague: "Colleague (Jakub)", external: "External (Jonas)", groupAdmin: "Group admin (Markéta)", hr: "HR (Lucie)", leadership: "Leadership (Tomáš)", orgAdmin: "Org admin (Martin)", owner: "Owner (Richard)" };
+      const PERMS = {
+        card: { owner: "write", self: "read", colleague: "read", external: "read", groupAdmin: "read", hr: "write", leadership: "read", orgAdmin: "write" },
+        photo: { owner: "write", self: "write", colleague: "read", external: "read", groupAdmin: "read", hr: "write", leadership: "read", orgAdmin: "write" },
+        workContact: { owner: "write", self: "read", colleague: "read", external: "none", groupAdmin: "read", hr: "write", leadership: "read", orgAdmin: "write" },
+        job: { owner: "write", self: "read", colleague: "none", external: "none", groupAdmin: "read", hr: "write", leadership: "read", orgAdmin: "write" },
+        contact: { owner: "write", self: "write", colleague: "none", external: "none", groupAdmin: "none", hr: "write", leadership: "none", orgAdmin: "write" },
+        personal: { owner: "write", self: "write", colleague: "none", external: "none", groupAdmin: "none", hr: "write", leadership: "none", orgAdmin: "write" },
+      };
+      const ORD = { none: 0, read: 1, write: 2 };
+
+      // ---------- state ----------
+      const S = {
+        role: "hr", plan: "ent", theme: "light", lang: "en", read: "live", listV: "rows", profV: "tabs", upsell: false,
+        stack: [{ r: "dashboard" }], sheet: null, revealed: {}, ptab: "overview", q: "", f: { dept: "", loc: "", type: "" }, seg: "current",
+        log: [], bg: false, toast: null, signedOut: false, retrying: false,
+      };
+
+      // ---------- permission logic (same as the web prototype) ----------
+      const viewer = () => P[VIEWERS[S.role]];
+      const isAdmin = (v) => v.owner || v.orgAdmin;
+      const hrish = (v) => v.owner || v.orgAdmin || v.roles.includes("hr");
+      const reaches = (v, r) => v.manages.length > 0 && !r.ended && r.id !== v.id && r.groups.some((g) => v.manages.includes(g));
+      function auds(v, r) {
+        const a = new Set();
+        if (r.ended) { if (v.owner) a.add("owner"); if (v.orgAdmin) a.add("orgAdmin"); if (v.roles.includes("hr")) a.add("hr"); return a; }
+        if (v.id === r.id) a.add("self");
+        if (v.owner) a.add("owner");
+        a.add(v.type === "external" ? "external" : "colleague");
+        if (reaches(v, r)) a.add("groupAdmin");
+        if (v.roles.includes("hr")) a.add("hr");
+        if (v.roles.includes("leadership")) a.add("leadership");
+        if (v.orgAdmin) a.add("orgAdmin");
+        return a;
+      }
+      function level(v, r, s) {
+        if (s === "personal" && r.type === "external") return "na";
+        let best = 0;
+        for (const a of auds(v, r)) { const val = PERMS[s][a]; if (val && ORD[val] > best) best = ORD[val]; }
+        return ["none", "read", "write"][best];
+      }
+      const reads = (v, r, s) => { const l = level(v, r, s); return l === "read" || l === "write"; };
+      function grantedBy(v, r, s) {
+        const want = level(v, r, s);
+        for (const a of ["self", "owner", "orgAdmin", "hr", "leadership", "groupAdmin", "colleague", "external"]) if (auds(v, r).has(a) && PERMS[s][a] === want) return a;
+        return null;
+      }
+      const dirOn = () => S.plan !== "none";
+      const lapsed = () => S.plan === "lapsed";
+      const sensitive = (s) => s === "contact" || s === "personal";
+      const key = (r, s) => r.id + ":" + s;
+      const revealedState = (r, s) => (r.id === viewer().id ? "open" : S.revealed[key(r, s)] || "closed");
+      const initials = (n) => n.split(" ").map((x) => x[0]).slice(0, 2).join("");
+      const sortName = (a, b) => a.name.localeCompare(b.name, S.lang === "cs" ? "cs" : "en");
+
+      function removalInfo(r, s) {
+        if (!r.ended) return null;
+        if (r.removed[s]) return { k: "gone", text: t("removedOn", fd(r.removed[s])) };
+        if (r.hold) return { k: "hold", text: t("heldNo") };
+        const p = RET[s];
+        if (p === "forever") return { k: "keep", text: t("keep") };
+        return { k: "due", text: t("dueOn", fd(addP(r.ended, p))), due: addP(r.ended, p) };
+      }
+      function nextRemoval(r) {
+        if (r.hold) return null;
+        let best = null;
+        for (const s of ["workContact", "contact", "photo", "personal"]) {
+          if (r.removed[s]) continue;
+          if (s === "photo" && r.photo == null) continue;
+          const due = addP(r.ended, RET[s]);
+          if (!best || due < best.due) best = { s, due };
+        }
+        return best;
+      }
+
+      // ---------- avatar: Profile photo, then Account picture, then initials ----------
+      const SIL = (o) => `<svg viewBox="0 0 40 40"><circle cx="20" cy="15" r="7" fill="rgba(255,255,255,${o})"/><path d="M6 38c1-8 7-12 14-12s13 4 14 12" fill="rgba(255,255,255,${o})"/></svg>`;
+      function avatarKind(r, v) {
+        const gone = r.ended && r.removed.photo;
+        if (r.photo != null && !gone && reads(v, r, "photo")) return "photo";
+        if (r.account === "bound" && r.acct != null) return "acct";
+        return "init";
+      }
+      function avatar(r, v, size) {
+        const kind = avatarKind(r, v);
+        const st = `width:${size}px;height:${size}px;font-size:${Math.round(size * 0.38)}px;`;
+        if (kind === "photo") return `<span class="av" style="${st}background:linear-gradient(160deg, oklch(0.8 0.09 ${r.photo}), oklch(0.5 0.12 ${r.photo + 40}))">${SIL(0.8)}</span>`;
+        if (kind === "acct") return `<span class="av" style="${st}background:oklch(0.62 0.13 ${r.acct})">${SIL(0.45)}</span>`;
+        return `<span class="av disp" style="${st}background:var(--accent);color:var(--primary-strong)">${initials(r.name)}</span>`;
+      }
+      function markers(r, v, compact) {
+        const out = [];
+        if (r.type === "external") out.push(`<span class="pill r">${compact ? "Ext" : t("external")}</span>`);
+        if (hrish(v) && v.id !== r.id) {
+          if (r.account === "none") out.push(`<span class="pill n">${t("noAccount")}</span>`);
+          if (r.account === "invited") out.push(`<span class="pill p">${t("inviteSent")}</span>`);
+          if (r.account === "deleted") out.push(`<span class="pill d">${t("accountDeleted")}</span>`);
+        }
+        if (r.id === v.id) out.push(`<span class="pill ok">${t("you")}</span>`);
+        return out.join("");
+      }
+
+      // ---------- navigation ----------
+      const curFrame = () => S.stack[S.stack.length - 1];
+      function leavePerson(fr) {
+        if (fr && fr.r === "person") for (const k of Object.keys(S.revealed)) if (k.startsWith(fr.id + ":")) delete S.revealed[k];
+      }
+      function push(fr) { leavePerson(curFrame()); S.stack.push(fr); S.sheet = null; if (fr.r === "person") S.ptab = "overview"; render(); }
+      function pop() { if (S.stack.length > 1) { leavePerson(S.stack.pop()); S.sheet = null; render(); } }
+      function goRoot(r) { S.stack.forEach(leavePerson); S.stack = [{ r }]; S.sheet = null; render(); }
+      function toast(msg) { S.toast = msg; render(); clearTimeout(toast.h); toast.h = setTimeout(() => { S.toast = null; render(); }, 1800); }
+      function show(id, s) {
+        const r = P[id];
+        S.revealed[key(r, s)] = "loading"; render();
+        setTimeout(() => {
+          if (S.read === "showfail") { S.revealed[key(r, s)] = "error"; render(); return; }
+          S.revealed[key(r, s)] = "open";
+          const now = new Date();
+          S.log.unshift({ reader: viewer().name, person: r.name, sec: t("sec_" + s), via: grantedBy(viewer(), r, s), at: String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0") });
+          render();
+        }, S.read === "slow" ? 1800 : 450);
+      }
+      function retryRead() { S.retrying = true; render(); setTimeout(() => { S.retrying = false; S.read = "live"; render(); }, 700); }
+      function killApp() { S.revealed = {}; S.stack = [{ r: "dashboard" }]; S.sheet = null; S.bg = false; render(); toast("App closed and reopened. Sensitive values were only in memory, so they are gone."); }
+      function signOut() { S.revealed = {}; S.signedOut = true; S.sheet = null; render(); }
+
+      // ---------- phone chrome ----------
+      function statusBar() {
+        return `<div class="status"><span>9:41</span><span class="r"><i class="ph-fill ph-cell-signal-full"></i><i class="ph-bold ph-wifi-high"></i><i class="ph-fill ph-battery-full"></i></span></div><div class="island"></div>`;
+      }
+      function tabBar(active) {
+        const tb = (k, icon, label) => `<div class="tb ${active === k ? "on" : ""}" onclick="goRoot('${k}')"><i class="ph${active === k ? "-fill" : ""} ph-${icon}"></i>${label}</div>`;
+        return `<div class="tabbar">${tb("dashboard", "squares-four", t("dashboard"))}${tb("requests", "calendar-blank", t("requests"))}<div class="tb"><div class="disc"><i class="ph-bold ph-play"></i></div></div>${tb("attendance", "timer", t("myAttendance"))}<div class="tb" onclick="S.sheet='more';render()"><i class="ph ph-list"></i>${t("more")}</div></div>`;
+      }
+      function stackHead(title, opts = {}) {
+        const back = S.stack.length > 1 ? S.stack[S.stack.length - 2] : null;
+        const backLabel = opts.backLabel ? `<span>${opts.backLabel}</span>` : "";
+        return `<div class="stackhead"><button class="back" onclick="pop()"><i class="ph-bold ph-caret-left"></i>${backLabel}</button>${title ? `<div class="stitle">${title}</div>` : ""}${opts.trailing || ""}</div>`;
+      }
+
+      // ---------- screens ----------
+      function scrDashboard(which) {
+        const title = { dashboard: t("dashboard"), requests: t("requests"), attendance: t("myAttendance") }[which];
+        return `<div class="screen"><div class="scroll" style="padding-top:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center"><h1 class="h1">${title}</h1><i class="ph ph-bell" style="font-size:22px;color:var(--muted)"></i></div>
+          <div class="gap-s"></div>
+          <div class="dash-card"><div class="skel" style="height:14px;width:40%"></div><div class="gap-s"></div><div class="skel" style="height:56px;border-radius:16px;animation:none"></div></div>
+          <div class="gap-s"></div>
+          <div class="dash-card"><div class="skel" style="height:14px;width:55%;animation:none"></div><div class="gap-s"></div><div class="skel" style="height:110px;border-radius:16px;animation:none"></div></div>
+          <div class="gap-s"></div>
+          <div style="text-align:center;color:var(--faint);font-size:13px;padding:20px">Existing ${title} screen, unchanged.<br/>Open <b>More</b> to reach the directory.</div>
+        </div>${tabBar(which)}</div>`;
+      }
+
+      function moreSheet() {
+        const v = viewer();
+        const row = (icon, label, on, extra = "", hl = false) => `<div class="mrow ${hl ? "hl" : ""}" onclick="${on}"><i class="ph ph-${icon}" style="font-size:22px"></i><span style="flex:1">${label}</span>${extra}</div>`;
+        let people = "";
+        if (dirOn()) people = `<div class="mlabel">${t("people")}</div>${row("address-book", t("directory"), "push({r:'directory'})", lapsed() ? `<span class="pill w">${S.lang === "cs" ? "jen čtení" : "read only"}</span>` : "", true)}`;
+        else if (S.upsell && isAdmin(v)) people = `<div class="mlabel">${t("people")}</div>${row("address-book", t("directory"), "push({r:'upsell'})", `<span class="pill w">${t("ent")}</span>`, true)}`;
+        return `<div class="sheetwrap"><div class="scrimbg" onclick="S.sheet=null;render()"></div><div class="sheet"><div class="grab"></div>
+          <div class="mlabel">${t("timeOff")}</div>${row("chart-bar", t("report"), "")}${row("users", t("groups"), "")}
+          ${people}
+          <div style="height:1px;background:var(--border);margin:8px 0"></div>
+          ${row("gear", t("settings"), "")}
+          <div class="mrow" style="color:var(--danger)" onclick="signOut()"><i class="ph ph-sign-out" style="font-size:22px"></i>${t("signOut")}</div>
+          <div style="border-top:1px solid var(--border);margin-top:4px;padding-top:4px">
+            <div class="mrow" style="height:56px" onclick="${dirOn() ? `push({r:'person',id:'${v.id}'})` : ""}">${avatar(v, v, 36)}<div style="flex:1;min-width:0"><div style="color:var(--text);font-size:14.5px">${v.name}</div><div style="font-size:12.5px;color:var(--faint);font-weight:500">${dirOn() ? (S.lang === "cs" ? "Můj profil v adresáři" : "My directory profile") : v.email}</div></div>${dirOn() ? '<i class="ph ph-caret-right chev"></i>' : ""}</div>
+          </div>
+        </div></div>`;
+      }
+
+      function scrUpsell() {
+        return `<div class="screen">${stackHead(t("directory"))}<div class="scroll"><div style="display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;padding:60px 16px">
+          <div class="logo" style="background:var(--warm-soft);color:var(--warm)"><i class="ph-fill ph-address-book"></i></div>
+          <div class="h1" style="font-size:22px">${t("upsellTitle")}</div><div style="color:var(--muted);line-height:21px">${t("upsellBody")}</div>
+          <button class="btn sec" onclick="toast(t('openingWeb'))">${t("seePlans")} <i class="ph ph-arrow-up-right"></i></button></div></div></div>`;
+      }
+
+      function lapseBanner() {
+        if (!lapsed()) return "";
+        return `<div class="notice w"><i class="ph-fill ph-warning-circle"></i><div>${t("lapsed")}${isAdmin(viewer()) ? " " + t("lapsedAdmin") : ""}</div></div><div class="gap-s"></div>`;
+      }
+
+      function filtered() {
+        const v = viewer();
+        const q = S.q.trim().toLowerCase();
+        let list = S.seg === "former" ? PEOPLE.filter((p) => p.ended) : PEOPLE.filter((p) => !p.ended && reads(v, p, "card"));
+        list = list.filter((p) => !q || p.name.toLowerCase().includes(q) || p.card.title.toLowerCase().includes(q));
+        if (S.f.dept) list = list.filter((p) => p.card.dept === S.f.dept);
+        if (S.f.loc) list = list.filter((p) => p.card.loc === S.f.loc);
+        if (S.f.type) list = list.filter((p) => p.type === S.f.type);
+        return list.sort(sortName);
+      }
+
+      function scrDirectory() {
+        const v = viewer();
+        const formerOk = hrish(v);
+        if (!formerOk) S.seg = "current";
+        const segRow = formerOk ? `<div class="seg"><button class="${S.seg === "current" ? "on" : ""}" onclick="S.seg='current';render()">${t("current")}</button><button class="${S.seg === "former" ? "on" : ""}" onclick="S.seg='former';render()">${t("former")}</button></div><div class="gap-s"></div>` : "";
+        const chip = (k, label, val, name) => `<span class="chip ${val ? "on" : ""}" onclick="S.sheet='filter:${k}';render()">${val ? name : label}<i class="ph-bold ph-caret-down" style="font-size:11px"></i></span>`;
+        const typeName = S.f.type === "external" ? t("externals") : t("employees");
+        const head = `<div style="padding-top:2px">
+          <h1 class="h1">${t("directory")}</h1><div style="color:var(--muted);font-size:14px;margin:2px 0 12px">Acme s.r.o.</div>
+          ${lapseBanner()}
+          ${segRow}
+          <div class="search"><i class="ph ph-magnifying-glass" style="font-size:18px"></i><input id="q" placeholder="${t("search")}" value="${S.q.replace(/"/g, "&quot;")}" oninput="S.q=this.value;renderKeep()"/>${S.q ? `<i class="ph-fill ph-x-circle" style="cursor:pointer" onclick="S.q='';render()"></i>` : ""}</div>
+          <div class="chips">${chip("dept", t("dept"), S.f.dept, deptName(S.f.dept))}${chip("loc", t("loc"), S.f.loc, locName(S.f.loc))}${chip("type", t("type"), S.f.type, typeName)}</div>
+        </div>`;
+        let body;
+        if (S.read === "loading" || S.retrying) body = skelList();
+        else if (S.read === "error") body = errorBox();
+        else {
+          const list = filtered();
+          if (!list.length) body = `<div style="text-align:center;padding:48px 16px;color:var(--muted)"><i class="ph ph-magnifying-glass" style="font-size:34px;color:var(--faint)"></i><div style="font-weight:600;color:var(--text);margin:8px 0 4px">${t("noMatch")}</div><button class="btn ghost" onclick="S.q='';S.f={dept:'',loc:'',type:''};render()">${t("clearFilters")}</button></div>`;
+          else if (S.seg === "former") body = formerList(list);
+          else body = `<div class="label" style="padding-top:14px"><span>${t("nPeople", list.length)}</span></div>` + (S.listV === "rows" ? rowsList(list) : cardsList(list));
+        }
+        return `<div class="screen">${stackHead("")}<div class="scroll" id="dirscroll">${head}${body}</div></div>`;
+      }
+
+      function rowsList(list) {
+        const v = viewer();
+        return `<div class="card">${list.map((r) => `<div class="row tap" onclick="push({r:'person',id:'${r.id}'})">${avatar(r, v, 40)}<div class="kv"><div class="v" style="font-size:15.5px">${r.name}</div><div class="k" style="font-size:13px;color:var(--muted)">${[r.card.title, deptName(r.card.dept)].filter(Boolean).join(" · ")}</div><div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">${markers(r, v)}</div></div><i class="ph ph-caret-right chev"></i></div>`).join("")}</div>`;
+      }
+      function cardsList(list) {
+        const v = viewer();
+        return `<div class="grid2">${list.map((r) => `<div class="pcard" onclick="push({r:'person',id:'${r.id}'})">${avatar(r, v, 64)}<div class="n">${r.name}</div><div class="s">${r.card.title}</div><div class="s" style="color:var(--faint)">${locName(r.card.loc)}</div><div class="ch">${markers(r, v, true)}</div></div>`).join("")}</div>`;
+      }
+      function formerList(list) {
+        const v = viewer();
+        return `<div class="label" style="padding-top:14px"><span>${t("nPeople", list.length)}</span><span class="sub">${S.lang === "cs" ? "podle data odchodu" : "by end date"}</span></div><div class="card">${list.sort((a, b) => (a.ended < b.ended ? 1 : -1)).map((r) => {
+          const nr = nextRemoval(r);
+          const chips = [r.hold ? `<span class="pill w"><i class="ph-fill ph-pause"></i>${t("hold")}</span>` : "", r.account === "deleted" ? `<span class="pill d">${t("accountDeleted")}</span>` : "", r.rejoinedAs ? `<span class="pill p">${t("rejoined")}</span>` : ""].join("");
+          return `<div class="row tap" onclick="push({r:'person',id:'${r.id}'})">${avatar(r, v, 40)}<div class="kv"><div class="v">${r.name}</div><div class="k" style="color:var(--muted)">${r.card.title} · ${t("ended", fd(r.ended))}</div>${nr ? `<div class="k">${t("nextRemoval", t("sec_" + nr.s), fd(nr.due))}</div>` : ""}<div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">${chips}</div></div><i class="ph ph-caret-right chev"></i></div>`;
+        }).join("")}</div>`;
+      }
+      function skelList() {
+        const r = () => `<div class="row"><span class="skel" style="width:40px;height:40px;border-radius:50%"></span><div style="flex:1;display:flex;flex-direction:column;gap:8px"><div class="skel" style="height:14px;width:50%"></div><div class="skel" style="height:11px;width:70%"></div></div></div>`;
+        return `<div class="label" style="padding-top:14px"><span class="skel" style="height:10px;width:70px;display:inline-block"></span></div><div class="card">${r()}${r()}${r()}${r()}${r()}</div>`;
+      }
+      function errorBox() {
+        return `<div class="gap-s"></div><div class="notice d"><i class="ph-fill ph-cloud-slash"></i><div>${t("unreachable")}</div></div><div style="padding:8px 4px"><button class="btn ghost" onclick="retryRead()">${t("retry")}</button></div>`;
+      }
+
+      // ---------- profile ----------
+      const val = (k, v, opts = {}) => {
+        if (!v && opts.hideEmpty) return "";
+        const tap = v && opts.tap ? `onclick="S.sheet='${opts.tap}:${encodeURIComponent(v)}:${opts.sens ? 1 : 0}';render()"` : "";
+        const cls = v ? (opts.tap || opts.nav ? "v link" : "v") : "v muted";
+        const nav = opts.nav ? `onclick="push({r:'person',id:'${opts.nav}'})"` : "";
+        const icon = v && opts.tap ? `<i class="ph ph-${opts.tap === "tel" ? "phone" : "envelope-simple"}" style="color:var(--primary);font-size:20px"></i>` : opts.nav ? '<i class="ph ph-caret-right chev"></i>' : "";
+        return `<div class="row ${tap || nav ? "tap" : ""}" ${tap} ${nav}><div class="kv"><div class="k">${k}</div><div class="${cls}">${v || t("notSet")}</div></div>${icon}</div>`;
+      };
+      function sectionBlock(r, s, inner, opts = {}) {
+        const v = viewer();
+        const ri = removalInfo(r, s);
+        const sub = ri ? `<span class="sub" style="color:${ri.k === "gone" ? "var(--danger)" : ri.k === "due" ? "var(--warm)" : "var(--faint)"}">${ri.k === "gone" ? (S.lang === "cs" ? "vymazáno" : "removed") : ri.k === "due" ? fd(ri.due) : ""}</span>` : "";
+        const label = opts.noLabel ? "" : `<div class="label"><span>${opts.title || t("sec_" + s)}${sensitive(s) && v.id !== r.id ? ' <i class="ph-fill ph-lock-simple"></i>' : ""}</span>${sub}</div>`;
+        let content;
+        if (ri && ri.k === "gone") content = `<div class="card"><div class="row"><i class="ph ph-trash ic"></i><div class="kv"><div class="v muted" style="font-style:normal">${ri.text}</div></div></div></div>`;
+        else if (sensitive(s) && v.id !== r.id) {
+          const st = revealedState(r, s);
+          if (st === "closed") content = `<div class="card"><div class="lockbox"><div class="t"><i class="ph-fill ph-lock-simple" style="color:var(--primary)"></i>${t("hiddenTitle")}</div><div class="s">${t("hiddenBody")}</div><button class="btn sec" onclick="show('${r.id}','${s}')"><i class="ph ph-eye"></i>${t("show")}</button></div></div>`;
+          else if (st === "loading") content = `<div class="card"><div class="lockbox" style="flex-direction:row;align-items:center"><div class="spin"></div><span style="color:var(--muted)">${S.lang === "cs" ? "Načítání…" : "Loading…"}</span></div></div>`;
+          else if (st === "error") content = `<div class="card"><div class="lockbox"><div class="t" style="color:var(--danger)"><i class="ph-fill ph-cloud-slash"></i>${t("showFailed")}</div><button class="btn sec" onclick="show('${r.id}','${s}')">${t("retry")}</button></div></div>`;
+          else content = `<div class="card">${inner}</div><div class="logline"><i class="ph ph-eye"></i>${t("logged")}</div>`;
+        } else content = `<div class="card">${inner}</div>`;
+        const foot = ri && ri.k !== "gone" ? `<div class="foot">${ri.text}</div>` : "";
+        return `${label}${content}${foot}<div class="gap"></div>`;
+      }
+      function overviewInner(r, v) {
+        const rt = r.card.reportsTo ? P[r.card.reportsTo] : null;
+        const card = [val(t("f_title"), r.card.title), val(t("f_dept"), deptName(r.card.dept)), val(t("f_loc"), locName(r.card.loc)), rt ? val(t("f_reportsTo"), rt.name, { nav: rt.id }) : val(t("f_reportsTo"), "")].join("");
+        let out = sectionBlock(r, "card", card);
+        if (reads(v, r, "workContact")) out += sectionBlock(r, "workContact", val(t("f_workEmail"), r.work.email, { tap: "mailto" }) + val(t("f_workPhone"), r.work.phone, { tap: "tel" }));
+        return out;
+      }
+      function jobInner(r) {
+        const j = r.job;
+        const emp = r.type === "employee";
+        return sectionBlock(r, "job", [val(t("f_legal"), j.legal, { hideEmpty: true }), val(t("f_number"), j.number), val(t("f_start"), fd(j.start)), emp ? val(t("f_probation"), fd(j.probation)) : "", val(t("f_leaving"), fd(j.leaving)), emp ? val(t("f_contract"), j.contract ? t("ct_" + j.contract) : "") : "", emp ? val(t("f_wt"), j.wt ? t("wt_" + j.wt) : "") : ""].join(""));
+      }
+      function contactInner(r) {
+        const c = r.contact;
+        const ec = c.ec.map((e, i) => (e.name ? `<div class="row tap" onclick="S.sheet='tel:${encodeURIComponent(e.phone)}:1';render()"><div class="kv"><div class="k">${t("f_ec", i + 1)}</div><div class="v">${e.name}</div><div class="v link" style="font-size:14.5px">${e.phone}</div></div><i class="ph ph-phone" style="color:var(--primary);font-size:20px"></i></div>` : i === 0 ? val(t("f_ec", 1), "") : "")).join("");
+        return sectionBlock(r, "contact", val(t("f_pphone"), c.phone, { tap: "tel", sens: true }) + val(t("f_pemail"), c.email, { tap: "mailto", sens: true }) + ec);
+      }
+      function personalInner(r) {
+        const p = r.personal;
+        const addr = p.a1 ? [p.a1, p.a2, `${p.postal} ${p.city}`, p.region, COUNTRY[p.country] ? COUNTRY[p.country][S.lang === "cs" ? 1 : 0] : ""].filter((x) => x && x.trim()).join("<br/>") : "";
+        return sectionBlock(r, "personal", val(t("f_address"), addr) + val(t("f_dob"), fd(p.dob)));
+      }
+      function recordInner(r, v) {
+        const rows = [];
+        rows.push(val(t("f_type"), r.type === "external" ? t("external") : t("employee")));
+        if (reads(v, r, "job")) rows.push(val(t("f_spell"), `${fd(r.start)} – ${r.ended ? fd(r.ended) : S.lang === "cs" ? "dosud" : "now"}`));
+        if (hrish(v) || v.id === r.id) {
+          const acc = { bound: t("bound"), none: t("noAccount"), invited: t("inviteSent"), deleted: t("accountDeleted") }[r.account];
+          rows.push(val(t("f_account"), acc));
+          if (r.account !== "deleted" && r.email) rows.push(val(t("f_signIn"), r.email));
+          rows.push(val(t("f_roles"), r.roles.length ? r.roles.map((x) => (x === "hr" ? "HR" : S.lang === "cs" ? "Vedení" : "Leadership")).join(", ") : t("none")));
+        }
+        let out = `<div class="label"><span>${t("tab_record")}</span></div><div class="card">${rows.join("")}</div><div class="gap"></div>`;
+        if (r.ended) {
+          const secs = ["card", "photo", "workContact", "job", "contact", "personal"].filter((s) => !(s === "personal" && r.type === "external"));
+          out += `<div class="label"><span>${t("retention")}</span></div><div class="card">${r.hold ? `<div class="row"><i class="ph-fill ph-pause-circle" style="color:var(--warm);font-size:20px"></i><div class="kv"><div class="v">${t("hold")}</div><div class="k">${t("holdBy", r.hold.by, fd(r.hold.at))}</div></div></div>` : ""}${secs.map((s) => { const ri = removalInfo(r, s); return `<div class="row"><div class="kv"><div class="k">${t("sec_" + s)}</div><div class="v" style="font-weight:500;font-size:14.5px;color:${ri.k === "gone" ? "var(--danger)" : ri.k === "due" ? "var(--warm)" : "var(--text)"}">${ri.text}</div></div></div>`; }).join("")}</div><div class="foot">${S.lang === "cs" ? "Doby uchování a pozastavení se nastavují na webu." : "Retention periods and holds are set on the web."}</div><div class="gap"></div>`;
+        }
+        return out;
+      }
+      function tabsFor(r, v) {
+        const tabs = ["overview"];
+        if (reads(v, r, "job")) tabs.push("job");
+        if (reads(v, r, "contact")) tabs.push("contact");
+        if (level(v, r, "personal") !== "na" && reads(v, r, "personal")) tabs.push("personal");
+        if (reads(v, r, "job") || hrish(v) || v.id === r.id) tabs.push("record");
+        return tabs;
+      }
+      function scrPerson(id) {
+        const r = P[id], v = viewer();
+        if (S.read === "loading" || S.retrying) return `<div class="screen">${stackHead("", { backLabel: t("directory") })}<div class="scroll"><span class="skel" style="display:block;width:80px;height:80px;border-radius:50%"></span><div class="gap-s"></div><div class="skel" style="height:26px;width:60%"></div><div class="gap-s"></div><div class="skel" style="height:14px;width:40%"></div><div class="gap"></div><div class="card"><div class="row"><div class="skel" style="height:14px;width:70%"></div></div><div class="row"><div class="skel" style="height:14px;width:50%"></div></div></div></div></div>`;
+        if (S.read === "error") return `<div class="screen">${stackHead("", { backLabel: t("directory") })}<div class="scroll">${errorBox()}</div></div>`;
+        const tabs = tabsFor(r, v);
+        if (!tabs.includes(S.ptab)) S.ptab = "overview";
+        const self = v.id === r.id;
+        const canWC = reads(v, r, "workContact") && !(r.ended && r.removed.workContact);
+        const phone = canWC && r.work.phone, mail = canWC && r.work.email;
+        const qa = canWC && !r.ended ? `<div class="qa"><button ${phone ? `onclick="S.sheet='tel:${encodeURIComponent(r.work.phone)}:0';render()"` : "disabled"}><i class="ph-fill ph-phone"></i>${t("call")}</button><button ${phone ? `onclick="S.sheet='sms:${encodeURIComponent(r.work.phone)}:0';render()"` : "disabled"}><i class="ph-fill ph-chat-circle"></i>${t("message")}</button><button ${mail ? `onclick="S.sheet='mailto:${encodeURIComponent(r.work.email)}:0';render()"` : "disabled"}><i class="ph-fill ph-envelope-simple"></i>${t("email")}</button></div><div class="gap"></div>` : "";
+        const header = `<div style="display:flex;flex-direction:column;gap:12px;padding:4px 4px 0">
+          <div onclick="${avatarKind(r, v) === "photo" ? `S.sheet='photo:${r.id}';render()` : ""}" style="cursor:pointer;align-self:flex-start">${avatar(r, v, 84)}</div>
+          <div><h1 class="h1">${r.name}</h1><div style="color:var(--muted);font-size:15px;margin-top:2px">${[r.card.title, deptName(r.card.dept)].filter(Boolean).join(" · ")}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${markers(r, v)}${r.ended ? `<span class="pill n">${t("formerSince", fd(r.ended))}</span>` : ""}${r.hold ? `<span class="pill w"><i class="ph-fill ph-pause"></i>${t("hold")}</span>` : ""}</div></div></div><div class="gap"></div>`;
+        const selfHint = self ? `<div class="notice p"><i class="ph-fill ph-pencil-simple"></i><div style="flex:1">${lapsed() ? t("selfHintLapsed") : t("selfHint")}<div><button class="btn ghost" style="padding:0;height:30px" onclick="toast(t('openingWeb'))">${t("openWeb")} <i class="ph ph-arrow-up-right"></i></button></div></div></div><div class="gap"></div>` : "";
+        const lb = lapsed() ? lapseBanner() + '<div class="gap-s"></div>' : "";
+        let body = "";
+        const blocks = { overview: () => overviewInner(r, v), job: () => jobInner(r), contact: () => contactInner(r), personal: () => personalInner(r), record: () => recordInner(r, v) };
+        if (S.profV === "tabs") {
+          const icon = (k) => (sensitive(k) && !self ? '<i class="ph-fill ph-lock-simple"></i>' : "");
+          const tabRow = tabs.length > 1 ? `<div class="tabs">${tabs.map((k) => `<button class="${S.ptab === k ? "on" : ""}" onclick="S.ptab='${k}';render()">${icon(k)}${t("tab_" + k)}</button>`).join("")}</div><div class="gap-s"></div><div style="height:8px"></div>` : "";
+          body = tabRow + blocks[S.ptab]();
+        } else body = tabs.map((k) => blocks[k]()).join("");
+        return `<div class="screen">${stackHead("", { backLabel: S.stack.length > 2 && S.stack[S.stack.length - 2].r === "person" ? P[S.stack[S.stack.length - 2].id].name.split(" ")[0] : t("directory") })}<div class="scroll">${header}${lb}${selfHint}${qa}${body}</div></div>`;
+      }
+
+      // ---------- sheets ----------
+      function filterSheet(k) {
+        const opts = k === "dept" ? Object.keys(DEPTS).filter((d) => PEOPLE.some((p) => !p.ended && p.card.dept === d)).map((d) => [d, deptName(d)]) : k === "loc" ? Object.keys(LOCS).map((l) => [l, locName(l)]) : [["employee", t("employees")], ["external", t("externals")]];
+        const cur = S.f[k];
+        const row = (id, label) => `<div class="mrow" style="color:var(--text)" onclick="S.f.${k}='${id}';S.sheet=null;render()"><span style="flex:1">${label}</span>${cur === id ? '<i class="ph-bold ph-check" style="color:var(--primary)"></i>' : ""}</div>`;
+        return `<div class="sheetwrap"><div class="scrimbg" onclick="S.sheet=null;render()"></div><div class="sheet"><div class="grab"></div><div class="mlabel">${t(k)}</div>${row("", t("any"))}${opts.map(([id, l]) => row(id, l)).join("")}</div></div>`;
+      }
+      function actionSheet(kind, value, sens) {
+        const v = decodeURIComponent(value);
+        const main = kind === "tel" ? `${t("call")} ${v}` : kind === "sms" ? `${t("message")} ${v}` : `${t("email")} ${v}`;
+        const msg = kind === "mailto" ? t("mailing", v) : t("calling", v);
+        return `<div class="sheetwrap"><div class="scrimbg" onclick="S.sheet=null;render()"></div><div class="actsheet"><div class="grp"><div class="ttl">${v}</div><button onclick="S.sheet=null;toast('${msg.replace(/'/g, "\\'")}')">${main}</button>${sens === "1" ? "" : `<button onclick="S.sheet=null;toast(t('copied'))">${t("copy")}</button>`}</div><div class="grp"><button class="cancel" onclick="S.sheet=null;render()">${t("cancel")}</button></div></div></div>`;
+      }
+      function photoViewer(id) {
+        const r = P[id];
+        return `<div class="viewer"><div style="height:54px"></div><div style="display:flex;justify-content:space-between;padding:8px 16px;color:#fff"><button class="back" style="color:#fff" onclick="S.sheet=null;render()"><i class="ph-bold ph-x"></i></button><span style="font-weight:600">${r.name}</span><span style="width:30px"></span></div><div style="flex:1;display:flex;align-items:center;justify-content:center"><div style="width:360px;height:360px;background:linear-gradient(160deg, oklch(0.8 0.09 ${r.photo}), oklch(0.5 0.12 ${r.photo + 40}))">${SIL(0.8)}</div></div><div style="color:#aaa;font-size:12px;text-align:center;padding:0 24px 60px">Full-size signed link, about an hour. iOS's URL cache may keep it for that hour.</div></div>`;
+      }
+
+      // ---------- side panel: notes and state ----------
+      const NOTES = {
+        dashboard: ["The tab bar keeps its five slots (Dashboard, Requests, clock, My attendance, More). The directory goes behind More, in a new People section, the same name as the web's sidebar section.", "Free and Pro: no People section at all, unless the upsell switch in the bar is on and the viewer is owner or org admin."],
+        directory: ["Pushed over the tab bar like Groups or Settings, with its own back button.", "Live read every time it opens, and again on pull to refresh and on foreground. Nothing goes to the local store.", "Search covers name and job title. Filters: department, location, type. Same as the web.", "Current / Former only for Owner, Org admin and HR.", "Markers: everyone sees External. No account, Invite sent and Account deleted only for Owner, Org admin and HR.", "No leave or attendance status."],
+        person: ["Header holds the photo (Profile photo, then Account picture, then initials), name, title and markers. Tap a photo for the full size.", "Call / Message / Email buttons appear only when Work contact is readable.", "Sections the viewer can't read are absent. With only Overview left, the tab row disappears.", "Contact and Personal start closed for anyone but the person. Show fetches that one section live and writes one read-log row. Leaving the person (back, or tapping Reports to) closes them.", "Opened values live only in component memory: no query cache, no expo-sqlite. The app-switcher snapshot is covered while one is open.", "Reports to opens that person's profile. Read only. No edit controls anywhere."],
+        upsell: ["Only shown with the upsell switch on, for owner and org admins on Free or Pro. The phone has no billing screens, so the button opens the web."],
+      };
+      function side() {
+        const v = viewer();
+        const fr = curFrame();
+        const scr = S.signedOut ? "signed out" : fr.r;
+        const notes = NOTES[fr.r] || NOTES.dashboard;
+        let lv = "";
+        if (fr.r === "person") {
+          const r = P[fr.id];
+          lv = `<div class="panel"><h3>Viewer → ${r.name}</h3><div>Audiences: <b>${[...auds(v, r)].join(", ") || "none"}</b></div><table>${["card", "photo", "workContact", "job", "contact", "personal"].map((s) => { const l = level(v, r, s); const shown = l === "na" ? "n/a (external)" : l; const mem = sensitive(s) ? (revealedState(r, s) === "open" && v.id !== r.id ? " · in memory" : v.id === r.id ? " · own, not logged" : "") : ""; return `<tr><td>${s}</td><td class="lv-${l}">${shown}</td><td>${mem}</td></tr>`; }).join("")}</table><div style="margin-top:6px;color:#8a7a40">The API returns only readable sections. The phone has nothing to hide itself.</div></div>`;
+        }
+        const log = `<div class="panel"><h3>Read-log rows written this session</h3>${S.log.length ? `<ul>${S.log.slice(0, 6).map((l) => `<li>${l.at} · ${l.reader} read ${l.person} · ${l.sec} (as ${l.via})</li>`).join("")}</ul>` : "<div>None yet. Only Show writes one; opening a profile writes none.</div>"}</div>`;
+        return `<div class="panel"><h3>Prototype · T-479</h3><div>Screen: <b>${scr}</b> · Viewer: <b>${VIEWER_LABEL[S.role]}</b> · Plan: <b>${S.plan}</b></div><ul>${notes.map((n) => `<li>${n}</li>`).join("")}</ul></div>${lv}${log}
+        <div class="panel"><h3>Simulate</h3><div style="display:flex;gap:6px;flex-wrap:wrap"><button onclick="S.bg=!S.bg;render()">${S.bg ? "Back to the app" : "App to background"}</button><button onclick="killApp()">Close the app</button><button onclick="S.signedOut=false;S.stack=[{r:'dashboard'}];render()">Reset</button></div><div style="margin-top:6px">Jump: <a href="#" onclick="jump('eva');return false">Eva</a> · <a href="#" onclick="jump('karel');return false">Karel (deleted)</a> · <a href="#" onclick="jump('petra');return false">Petra (no account)</a> · <a href="#" onclick="jump('ondrej');return false">Ondřej (former)</a> · <a href="#" onclick="jump('veronika');return false">Veronika (purged)</a> · <a href="#" onclick="jump('filip');return false">Filip (hold)</a> · <a href="#" onclick="jump(viewer().id);return false">Me</a></div></div>`;
+      }
+      function jump(id) { S.stack.forEach(leavePerson); S.signedOut = false; S.stack = [{ r: "dashboard" }, { r: "directory" }, { r: "person", id }]; S.ptab = "overview"; S.sheet = null; render(); }
+
+      // ---------- control bar ----------
+      function bar() {
+        const g = (label, key, opts) => `<div class="g"><span>${label}</span>${opts.map(([v, l]) => `<button class="${S[key] === v ? "on" : ""}" onclick="S['${key}']=${typeof v === "boolean" ? v : `'${v}'`};S.revealed={};render()">${l}</button>`).join("")}</div>`;
+        return `<div class="g"><span>Viewer</span><select onchange="S.role=this.value;S.revealed={};S.seg='current';render()">${Object.keys(VIEWERS).map((k) => `<option value="${k}" ${S.role === k ? "selected" : ""}>${VIEWER_LABEL[k]}</option>`).join("")}</select></div>
+          ${g("Plan", "plan", [["ent", "Enterprise"], ["lapsed", "Lapsed"], ["none", "Free/Pro"]])}
+          ${g("Upsell", "upsell", [[false, "off"], [true, "on"]])}
+          ${g("Theme", "theme", [["light", "Light"], ["dark", "Dark"]])}
+          ${g("Lang", "lang", [["en", "EN"], ["cs", "CS"]])}
+          ${g("Read", "read", [["live", "Live"], ["loading", "Loading"], ["error", "Offline"], ["slow", "Slow Show"], ["showfail", "Show fails"]])}
+          ${g("List", "listV", [["rows", "Rows"], ["cards", "Cards"]])}
+          ${g("Profile", "profV", [["tabs", "Tabs"], ["scroll", "One scroll"]])}`;
+      }
+
+      // ---------- render ----------
+      function render(keepFocus) {
+        const ph = document.getElementById("phone");
+        ph.className = "phone" + (S.theme === "dark" ? " dark" : "");
+        document.body.className = S.theme === "dark" ? "darkpage" : "";
+        const fr = curFrame();
+        let screen;
+        if (S.signedOut) screen = `<div class="screen" style="align-items:center;justify-content:center;gap:14px;text-align:center;padding:0 32px"><div class="logo">F</div><div class="h1" style="font-size:24px">Flexi Day</div><div style="color:var(--muted)">${S.lang === "cs" ? "Byli jste odhlášeni. Vše z adresáře, co telefon držel v paměti, je pryč." : "You're signed out. Whatever the phone held of the directory in memory is gone."}</div></div>`;
+        else if (fr.r === "directory") screen = scrDirectory();
+        else if (fr.r === "person") screen = scrPerson(fr.id);
+        else if (fr.r === "upsell") screen = scrUpsell();
+        else screen = scrDashboard(fr.r);
+        let sheet = "";
+        if (S.sheet === "more") sheet = moreSheet();
+        else if (S.sheet && S.sheet.startsWith("filter:")) sheet = filterSheet(S.sheet.slice(7));
+        else if (S.sheet && S.sheet.startsWith("photo:")) sheet = photoViewer(S.sheet.slice(6));
+        else if (S.sheet) { const [k, v, s] = S.sheet.split(":"); sheet = actionSheet(k, v, s); }
+        const anyOpen = Object.values(S.revealed).includes("open");
+        const priv = S.bg ? `<div class="privacy"><div class="logo">F</div><div style="color:var(--muted);font-size:13px;max-width:240px;text-align:center">${anyOpen ? "App-switcher snapshot is covered: a Contact or Personal section is open." : "Backgrounded. Nothing sensitive open, so the snapshot shows the screen as is (shown covered here only to mark the state)."}</div></div>` : "";
+        const tst = S.toast ? `<div class="toast">${S.toast}</div>` : "";
+        const sc = document.getElementById("dirscroll");
+        const scrollTop = sc ? sc.scrollTop : 0;
+        ph.innerHTML = statusBar() + screen + sheet + priv + tst + `<div class="homebar"></div>`;
+        if (keepFocus) { const q = document.getElementById("q"); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } const sc2 = document.getElementById("dirscroll"); if (sc2) sc2.scrollTop = scrollTop; }
+        document.getElementById("side").innerHTML = side();
+        document.getElementById("bar").innerHTML = bar();
+      }
+      const renderKeep = () => render(true);
+
+      // ---------- hash: #role=hr&plan=ent&theme=dark&lang=cs&go=person/eva&tab=contact&show=contact&sheet=more&seg=former ----------
+      (function fromHash() {
+        const p = new URLSearchParams(location.hash.slice(1));
+        for (const k of ["role", "plan", "theme", "lang", "read", "listV", "profV", "seg", "q"]) if (p.get(k)) S[k] = p.get(k);
+        if (p.get("upsell") === "1") S.upsell = true;
+        for (const k of ["dept", "loc", "type"]) if (p.get(k)) S.f[k] = p.get(k);
+        const go = p.get("go");
+        if (go === "directory") S.stack = [{ r: "dashboard" }, { r: "directory" }];
+        else if (go === "upsell") S.stack = [{ r: "dashboard" }, { r: "upsell" }];
+        else if (go && go.startsWith("person/")) S.stack = [{ r: "dashboard" }, { r: "directory" }, { r: "person", id: go.slice(7) }];
+        if (p.get("tab")) S.ptab = p.get("tab");
+        if (p.get("sheet")) S.sheet = p.get("sheet");
+        if (p.get("bg") === "1") S.bg = true;
+        render();
+        const ptab = p.get("tab");
+        if (ptab) S.ptab = ptab;
+        const sh = p.get("show");
+        if (sh && go && go.startsWith("person/")) { const id = go.slice(7); for (const s of sh.split(",")) { S.revealed[id + ":" + s] = "open"; S.log.unshift({ reader: viewer().name, person: P[id].name, sec: t("sec_" + s), via: grantedBy(viewer(), P[id], s), at: "09:41" }); } }
+        render();
+      })();
+    </script>
+  </body>
+</html>
