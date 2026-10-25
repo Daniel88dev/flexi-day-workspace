@@ -5,7 +5,7 @@
   Question it answers: how the directory, profile, edit form, settings and dialogs
   look and behave on the web, and how the permission table changes them per viewer.
   Pages are hash routes (#/directory, #/person/eva, ...). The dark bar at the
-  bottom is the prototype's own control: viewer, plan, layout variant, annotations.
+  bottom is the prototype's own control: viewer, plan, jump-to, annotations. Round 2: profile is the tabbed layout (W1), Contact and Personal open on Show (W2).
 -->
 <html lang="en">
   <head>
@@ -110,6 +110,27 @@
       .chip.rev { background: var(--review-soft); color: var(--review); }
       .chip.line { background: transparent; box-shadow: inset 0 0 0 1px var(--border-strong); }
       input, select, textarea { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; height: 36px; padding: 0 10px; min-width: 0; }
+      input[type="checkbox"], input[type="radio"] { height: 16px; width: 16px !important; padding: 0; margin: 0; border: 0; flex-shrink: 0; accent-color: var(--primary); }
+      input.bad, select.bad { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danger-soft); }
+      .err { font-size: 12px; color: var(--danger); margin-top: 4px; font-weight: 600; }
+      .err:empty { display: none; }
+      a.hint { color: var(--primary-strong); }
+      .req { color: var(--danger); margin-left: 2px; }
+      .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .choice label { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; box-shadow: inset 0 0 0 1px var(--border-strong); cursor: pointer; }
+      .choice label.on { box-shadow: inset 0 0 0 2px var(--primary); background: var(--primary-soft); }
+      .choice label input { margin-top: 2px; }
+      .choice b { display: block; }
+      .choice span.small { color: var(--muted); }
+      .dlg-sec { font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); margin: 18px 0 8px; }
+      .dlg-sec:first-child { margin-top: 4px; }
+      .checkline { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; background: var(--surface-2); cursor: pointer; }
+      .checkline.dis { opacity: 0.55; cursor: not-allowed; }
+      .checkline input { margin-top: 2px; }
+      .reveal { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px; background: var(--surface-2); }
+      .viewtoggle { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; margin-left: auto; }
+      .viewtoggle button { border: 0; background: var(--surface); height: 34px; padding: 0 12px; font: inherit; font-weight: 600; font-size: 13px; color: var(--muted); cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+      .viewtoggle button.on { background: var(--primary-soft); color: var(--primary-strong); }
       textarea { height: auto; padding: 8px 10px; width: 100%; }
       input:disabled, select:disabled, textarea:disabled { background: var(--surface-2); color: var(--muted); }
       input:focus, select:focus, textarea:focus { outline: 2px solid oklch(0.55 0.165 285 / 0.4); outline-offset: 0; }
@@ -441,7 +462,8 @@
 
       // ---------- state ----------
       const S = {
-        route: "/directory", role: "orgAdmin", plan: "ent", lang: "en", pv: "A", dv: "A", ann: true,
+        route: "/directory", role: "orgAdmin", plan: "ent", lang: "en", ann: true, revealed: {},
+        dv: (() => { try { return localStorage.getItem("proto-dir-view") || "A"; } catch (e) { return "A"; } })(),
         enabled: true, agreement: { v: 1, by: "Richard Kolář", at: "2026-09-02" }, agreementV2: false,
         f: { q: "", dept: "", loc: "", type: "" }, ptab: "overview", dialog: null, toast: null, exports: {}, orgExport: null,
         perms: {
@@ -589,12 +611,13 @@
         const [path, q] = h.split("?");
         S.route = path || "/directory";
         const params = new URLSearchParams(q || "");
-        for (const k of ["role", "plan", "lang", "pv", "dv"]) if (params.get(k)) S[k] = params.get(k);
+        for (const k of ["role", "plan", "lang"]) if (params.get(k)) S[k] = params.get(k);
+        if (params.get("view")) S.dv = params.get("view");
         if (params.get("ann")) S.ann = params.get("ann") === "1";
         if (params.get("ptab")) S.ptab = params.get("ptab");
       }
       function hashFor(path) {
-        const q = new URLSearchParams({ role: S.role, plan: S.plan, lang: S.lang, pv: S.pv, dv: S.dv, ann: S.ann ? "1" : "0" });
+        const q = new URLSearchParams({ role: S.role, plan: S.plan, lang: S.lang, ann: S.ann ? "1" : "0" });
         return "#" + path + "?" + q.toString();
       }
       const sync = () => history.replaceState(null, "", hashFor(S.route));
@@ -604,26 +627,28 @@
       const A = {
         go(path) {
           const [p, anchor] = path.split("#");
+          const pid = (s) => (s.match(/^\/person\/([^/]+)/) || [])[1];
+          if (pid(p) !== pid(S.route)) { S.revealed = {}; S.ptab = "overview"; }
           S.route = p; S.dialog = null;
           history.pushState(null, "", hashFor(p));
-          logReadIfNeeded();
           render(); window.scrollTo(0, 0);
           if (anchor) { const el = document.getElementById(anchor); if (el) el.scrollIntoView(); }
         },
         set(k, v) {
           S[k] = v; S.dialog = null;
-          if (k === "plan" && v === "ent") S.agreementV2 = S.agreementV2;
-          sync(); logReadIfNeeded(); render();
+          if (k === "role") S.revealed = {};
+          sync(); render();
         },
+        view(v) { S.dv = v; try { localStorage.setItem("proto-dir-view", v); } catch (e) {} render(); },
         filter(k, v) { S.f[k] = v; render(); },
-        open(kind, extra = {}) { S.dialog = { kind, ...extra }; render(); },
+        open(kind, extra = {}) {
+          S.dialog = { kind, ...extra };
+          if (kind === "add") S.dialog.form = { name: "", type: "employee", title: "", dept: "", loc: "", reportsTo: "", email: "", invite: true };
+          render();
+          if (kind === "add") document.getElementById("addname")?.focus();
+        },
         close() { S.dialog = null; render(); },
         toast(msg) { S.toast = msg; render(); clearTimeout(toastTimer); toastTimer = setTimeout(() => { S.toast = null; render(); }, 2600); },
-        variant(dir) {
-          const k = pageVariantKey(); if (!k) return;
-          const list = ["A", "B"]; const i = list.indexOf(S[k]);
-          S[k] = list[(i + dir + list.length) % list.length]; sync(); render();
-        },
         setPerm(row, aud, val) {
           const before = (S.perms[row] || S.acts[row])[aud];
           (S.perms[row] || S.acts[row])[aud] = val;
@@ -676,19 +701,26 @@
         removePhoto(id) { P[id].photo = null; A.toast("Profile photo removed. Showing the next fallback."); },
       };
       const nowTime = () => { const d = new Date(); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
-      let lastLogged = "";
-      function logReadIfNeeded() {
-        const m = S.route.match(/^\/person\/([^/]+)/);
-        if (!m || !P[m[1]]) return;
-        const r = P[m[1]], v = viewer();
-        if (r.id === v.id) return;
-        const secs = ["contact", "personal"].filter((s) => { const l = level(v, r, s); return l === "read" || l === "write"; });
-        if (!secs.length) return;
-        const key = v.id + r.id + S.route;
-        if (key === lastLogged) return;
-        lastLogged = key;
-        S.readLog.unshift({ at: TODAY + " " + nowTime(), reader: v.name, person: r.name, secs: secs.map((s) => t("sec_" + s)).join(", "), aud: t("aud_" + grantedBy(v, r, secs[0])), kind: "read" });
+      function addErrors(f) {
+        const cs = S.lang === "cs";
+        const e = {};
+        const name = (f.name || "").trim(), email = (f.email || "").trim().toLowerCase();
+        if (!name) e.name = cs ? "Vyplňte jméno." : "Enter a name.";
+        if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) e.email = cs ? "Zadejte e-mail ve tvaru jmeno@example.com." : "Enter an email like name@example.com.";
+        else if (email) {
+          const clash = openPeople().find((p) => p.email.toLowerCase() === email);
+          if (clash) e.email = cs ? `${clash.name} už tento e-mail používá.` : `${clash.name} already uses this email. Each open Employment needs its own.`;
+        }
+        if (f.invite && !email && f.inviteAsked) e.email = cs ? "Pozvánka potřebuje e-mail." : "An invite needs an email.";
+        return e;
       }
+      const revealed = (r, s) => r.id === viewer().id || !!S.revealed[r.id + ":" + s];
+      A.reveal = (id, s) => {
+        const r = P[id], v = viewer();
+        S.revealed[id + ":" + s] = true;
+        S.readLog.unshift({ at: TODAY + " " + nowTime(), reader: v.name, person: r.name, secs: t("sec_" + s), aud: t("aud_" + grantedBy(v, r, s)), kind: "read" });
+        render();
+      };
 
       // ---------- shell ----------
       function shell(content) {
@@ -815,6 +847,7 @@
             <select onchange="A.filter('dept',this.value)"><option value="">${t("allDepts")}</option>${usedDepts.map((d) => `<option value="${d.id}" ${S.f.dept === d.id ? "selected" : ""}>${d.name}</option>`).join("")}</select>
             <select onchange="A.filter('loc',this.value)"><option value="">${t("allLocs")}</option>${usedLocs.map((d) => `<option value="${d.id}" ${S.f.loc === d.id ? "selected" : ""}>${d.name}</option>`).join("")}</select>
             <select onchange="A.filter('type',this.value)"><option value="">${t("allTypes")}</option><option value="employee" ${S.f.type === "employee" ? "selected" : ""}>${t("onlyEmp")}</option><option value="external" ${S.f.type === "external" ? "selected" : ""}>${t("onlyExt")}</option></select>
+            <div class="viewtoggle"><button class="${S.dv === "A" ? "on" : ""}" onclick="A.view('A')">${I.grid} ${S.lang === "cs" ? "Karty" : "Cards"}</button><button class="${S.dv === "B" ? "on" : ""}" onclick="A.view('B')">${I.users} ${S.lang === "cs" ? "Tabulka" : "Table"}</button></div>
           </div>`;
         let body;
         if (S.dv === "A") {
@@ -891,7 +924,9 @@
         const sensitive = s === "contact" || s === "personal";
         const editBtn = m !== "read" && !gone ? `<button class="btn xs out" onclick="A.go('/person/${r.id}/edit#${s}')">${I.pen} ${m === "clear" ? t("clearOnly") : t("edit")}</button>` : "";
         let body;
+        const closed = sensitive && !gone && !revealed(r, s);
         if (gone) body = `<p class="muted small" style="margin:0">The fields of this section were emptied. The rest of the record stays.</p>`;
+        else if (closed) body = revealBox(r, s);
         else if (s === "photo") {
           const k = avatarKind(r, v);
           body = `<div class="row" style="gap:14px">${avatar(r, v, 64)}<div><div style="font-weight:600">${r.photo != null ? "Profile photo, uploaded" : "No Profile photo"}</div><div class="small muted">Showing: ${k}</div>
@@ -899,12 +934,15 @@
             ${m === "clear" && r.photo != null ? `<div class="row" style="margin-top:8px"><button class="btn xs ghost" onclick="A.removePhoto('${r.id}')">Remove</button></div>` : ""}</div></div>`;
         } else body = `<dl class="fl">${fieldRows(r, s, v)}</dl>`;
         return `<div class="card" id="sec-${s}">
-          <div class="sec-h"><h2>${t("sec_" + s)}</h2>${sensitive ? `<span class="faint" title="${t("sensitiveNote")}">${I.lock}</span>` : ""}${lvlChip(m)}<div class="grow"></div>${s !== "photo" ? editBtn : ""}</div>
-          ${sensitive && r.id !== v.id ? `<div class="sec-note">${I.eye} Your view of this section is recorded in the read log.</div>` : ""}
+          <div class="sec-h"><h2>${t("sec_" + s)}</h2>${sensitive ? `<span class="faint" title="${t("sensitiveNote")}">${I.lock}</span>` : ""}${lvlChip(m)}<div class="grow"></div>${s !== "photo" && !closed ? editBtn : ""}</div>
+          ${sensitive && r.id !== v.id && !closed && !gone ? `<div class="sec-note">${I.eye} You opened this section. The read log recorded it.</div>` : ""}
           ${rem ? `<div class="removal ${rem.k}">${rem.k === "hold" ? I.pause : I.hist} ${rem.text}</div>` : ""}
           ${body}
           ${S.ann ? `<div class="ann">level=${l}${m === "clear" ? " (lapsed: clear only)" : ""} · granted by ${t("aud_" + (grantedBy(v, r, s) || "colleague"))}</div>` : ""}
         </div>`;
+      }
+      function revealBox(r, s) {
+        return `<div class="reveal">${I.lock}<div class="grow"><div style="font-weight:600">${S.lang === "cs" ? "Skryto, dokud to neotevřete" : "Hidden until you open it"}</div><div class="small muted">Opening ${t("sec_" + s)} adds a row to the read log: you, ${r.name}, this section, now.</div></div><button class="btn sm out" onclick="A.reveal('${r.id}','${s}')">${I.eye} ${S.lang === "cs" ? "Zobrazit" : "Show"}</button></div>`;
       }
       function recordFacts(r, v) {
         const see = adminMarkers(v) || r.id === v.id;
@@ -918,7 +956,7 @@
         if (r.prevSpell && adminMarkers(v)) facts.push(["Earlier spell", `<a onclick="A.go('/person/${r.prevSpell}')">${fd(P[r.prevSpell].start)} to ${fd(P[r.prevSpell].ended)}</a>`]);
         if (r.rejoinedAs) facts.push(["Rejoined", `<a onclick="A.go('/person/${r.rejoinedAs}')">open spell since ${fd(P[r.rejoinedAs].start)}</a>`]);
         if (r.hold) facts.push(["Retention hold", `set by ${r.hold.by} on ${fd(r.hold.at)}`]);
-        return `<dl class="fl" style="grid-template-columns:110px 1fr">${facts.filter((f) => f[1]).map((f) => `<dt>${f[0]}</dt><dd>${f[1]}</dd>`).join("")}</dl>`;
+        return `<dl class="fl" style="grid-template-columns:110px 1fr">${facts.filter((f) => f[0] && f[1]).map((f) => `<dt>${f[0]}</dt><dd>${f[1]}</dd>`).join("")}</dl>`;
       }
       function actionList(r, v, inline) {
         const items = [];
@@ -965,21 +1003,14 @@
         const holdBanner = r.hold ? `<div class="banner rev">${I.pause}<div><b>Retention hold.</b> Retention purges skip this record until the hold is lifted. Set by ${r.hold.by} on ${fd(r.hold.at)}. Erasure still works.</div>${isAdmin(v) ? `<button class="btn sm out" onclick="A.open('hold',{id:'${r.id}'})">${t("liftHold")}</button>` : ""}</div>` : "";
         const exp = S.exports[r.id];
         const expLine = exp ? `<div class="box small">${exp.state === "ready" ? `${I.dl} Export ready, available until ${fd(exp.until)}. <a onclick="A.toast('Link re-signed. Download starts.')">Download</a>` : `<span class="spinner"></span> Preparing export…`}</div>` : "";
-        if (S.pv === "A") {
-          return `${backLink}<div style="height:10px"></div>${lapseBanner()}${copyBanner(r, v)}${holdBanner}
-            <div class="pgridA"><div class="stack">${`<div class="card">${head}</div>`}${SECTIONS.map((s) => sectionCard(r, s, v)).join("")}</div>
-            <div class="stack"><div class="card tight"><h2 style="margin-bottom:8px">${t("record")}</h2>${recordFacts(r, v)}</div>
-            <div class="card tight"><h2 style="margin-bottom:8px">${t("actions")}</h2>${actionList(r, v)}${expLine}</div>
-            ${ann(`Layout A: one page, sections stacked, record facts and actions in a right rail. Avatar order: Profile photo, then Account picture while bound, then initials.`)}</div></div>`;
-        }
-        const tabs = [["overview", "Overview", ["card", "photo", "workContact"]], ["job", t("sec_job"), ["job"]], ["contact", t("sec_contact"), ["contact"]], ["personal", t("sec_personal"), ["personal"]], ["record", t("record"), []]];
+        const tabs = [["overview", S.lang === "cs" ? "Přehled" : "Overview", ["card", "photo", "workContact"]], ["job", t("sec_job"), ["job"]], ["contact", t("sec_contact"), ["contact"]], ["personal", t("sec_personal"), ["personal"]], ["record", t("record"), []]];
         const visTabs = tabs.filter(([k, , secs]) => !secs.length || secs.some((s) => !["none", "na"].includes(level(v, r, s))) || S.ann);
         const cur = visTabs.find((x) => x[0] === S.ptab) || visTabs[0];
         return `${backLink}<div style="height:10px"></div>${lapseBanner()}${copyBanner(r, v)}${holdBanner}
           <div class="card">${head}<div style="margin-top:16px">${actionList(r, v, true)}</div>${expLine}</div>
           <div class="tabs">${visTabs.map(([k, label, secs]) => { const hid = secs.length && secs.every((s) => ["none", "na"].includes(level(v, r, s))); return `<div class="tab ${cur[0] === k ? "on" : ""}" onclick="S.ptab='${k}';render()">${label}${hid ? ` <span class="faint">${I.lock}</span>` : ""}</div>`; }).join("")}</div>
           <div class="stack" style="max-width:820px">${cur[0] === "record" ? `<div class="card">${recordFacts(r, v)}</div>` : cur[2].map((s) => sectionCard(r, s, v)).join("")}</div>
-          ${ann("Layout B: header with actions as buttons, one tab per section group. Tabs the viewer can't read are hidden in the product (shown with a lock here only while annotations are on).")}`;
+          ${ann("Header with the actions as buttons, then one tab per section group (W1). A tab the viewer can't read is absent in the product; it shows with a lock here only while notes are on. Contact and Personal of someone else start closed and load on Show, which is what writes the read-log row (W2). Avatar order: Profile photo, then Account picture while bound, then initials.")}`;
       }
 
       // ---------- edit form ----------
@@ -1017,7 +1048,7 @@
           return `<div class="card esec ${m === "read" ? "ro" : ""}" id="${s}" data-sec="${s}"><div class="sec-h"><h2>${t("sec_" + s)}</h2>${sensitive ? `<span class="faint">${I.lock}</span>` : ""}${lvlChip(m)}</div>
             ${m === "read" ? `<div class="sec-note">Read-only for you. Shown greyed so you can see what's there.</div>` : ""}
             ${m === "clear" ? `<div class="sec-note">${I.lock} On Pro you can clear values but not set new ones.</div>` : ""}
-            ${inner(dis, m)}</div>`;
+            ${sensitive && !revealed(r, s) ? revealBox(r, s) : inner(dis, m)}</div>`;
         };
         const deptOpts = DEPTS.filter((d) => !d.archived || d.id === r.card.dept).map((d) => [d.id, d.name + (d.archived ? " (archived)" : "")]);
         const locOpts = LOCS.filter((d) => !d.archived || d.id === r.card.loc).map((d) => [d.id, d.name]);
@@ -1069,7 +1100,7 @@
             ${F(t("f_dob"), inp("personal.dob", r.personal.dob, dis, "date"), clr("personal.dob", r.personal.dob, m))}
           </div><div class="hint">Line 1, city and country are needed once any part of the address is filled.</div>`)}
           <div class="row" style="justify-content:flex-end"><button class="btn out" onclick="A.go('/person/${r.id}')">${t("cancel")}</button><button class="btn" onclick="A.saveEdit('${r.id}')">${t("save")}</button></div>
-          ${ann(`Editing as ${t("aud_" + S.role)}. Saves go live with no approval. ${r.id !== v.id && ["contact", "personal"].some((s) => level(v, r, s) !== "none") ? "Opening this form wrote a read-log row, like the profile page does." : ""}`)}
+          ${ann(`Editing as ${t("aud_" + S.role)}. Saves go live with no approval. ${r.id !== v.id && ["contact", "personal"].some((s) => level(v, r, s) !== "none") ? "Contact and Personal stay closed here too until Show; a section opened on the profile stays open for this visit." : ""}`)}
           </div>`;
       }
 
@@ -1252,11 +1283,12 @@
           case "copy": {
             const pr = P[r.prevSpell];
             const opt = (s, label) => {
-              if (s === "personal" && r.type === "external") return `<label class="row faint"><input type="checkbox" disabled> ${label} · skipped, the new spell is external</label>`;
-              if (pr.removed[s]) return `<label class="row faint"><input type="checkbox" disabled> ${label} · removed by retention on ${fd(pr.removed[s])}</label>`;
+              const line = (on, note) => `<label class="checkline ${on ? "" : "dis"}"><input type="checkbox" ${on ? `class="cp" value="${s}" checked` : "disabled"}><span><b>${label}</b><span class="small muted" style="display:block">${note}</span></span></label>`;
+              if (s === "personal" && r.type === "external") return line(false, "Skipped: the new spell is an external worker.");
+              if (pr.removed[s]) return line(false, `Removed by retention on ${fd(pr.removed[s])}.`);
               const has = s === "photo" ? pr.photo != null : s === "contact" ? pr.contact.phone || pr.contact.email : pr.personal.a1 || pr.personal.dob;
-              if (!has) return `<label class="row faint"><input type="checkbox" disabled> ${label} · nothing held</label>`;
-              return `<label class="row"><input type="checkbox" class="cp" value="${s}" checked> ${label} · held, ${t("dueOn", { d: fd(addP(pr.ended, S.ret[s])) }).toLowerCase()}</label>`;
+              if (!has) return line(false, "Nothing held.");
+              return line(true, `Held until ${fd(addP(pr.ended, S.ret[s]))} under the current retention.`);
             };
             return dlg(`${t("copyPrev")}`,
               `<p>${r.name}'s earlier spell ran ${fd(pr.start)} to ${fd(pr.ended)}. Copy whole sections into this spell:</p><div class="stack-s">${opt("contact", t("sec_contact"))}${opt("personal", t("sec_personal"))}${opt("photo", t("sec_photo"))}</div><p class="small muted" style="margin-top:12px">Card, Work contact and Job never carry over. Copying overwrites what this spell holds in those sections.</p>`,
@@ -1280,12 +1312,41 @@
           case "invite":
             return dlg(`${t("invite")} · ${r.name}`, `<label class="f">Email</label><input id="invemail" type="email" value="${r.email}" style="width:100%"><div class="hint">The invite targets this record. Redeeming it binds the account. The sign-up form fills in "${r.name}".</div>
               <label class="f" style="margin-top:12px">Group (optional)</label><select style="width:100%"><option>No group</option><option>Support</option><option>Engineering</option></select>`, cancelBtn() + `<button class="btn" onclick="DLG.invite('${r.id}')">${I.send} ${t("invite")}</button>`);
-          case "add":
-            return dlg(t("addPerson"), `<div class="fgrid"><div class="field full"><label class="f">${t("f_name")}</label><input id="addname" placeholder="Required"></div>
-              <div class="field full"><label class="f">Email</label><input id="addemail" type="email" placeholder="Optional, needed for an invite"></div>
-              <div class="field full"><label class="f">Type</label><div class="row"><label class="row"><input type="radio" name="addtype" value="employee" checked> Employee</label><label class="row"><input type="radio" name="addtype" value="external"> ${t("external")}</label></div></div>
-              <div class="field full"><label class="row"><input type="checkbox" id="addinv"> Send an invite now</label></div></div>
-              <p class="small muted">The person exists only in the directory until they redeem an invite. Nobody books leave or records attendance for them.</p>`, cancelBtn() + `<button class="btn" onclick="DLG.add()">Add</button>`);
+          case "add": {
+            const f = d.form, e = d.err || {};
+            const cs = S.lang === "cs";
+            const opt = (arr, cur) => `<option value="">—</option>` + arr.map(([k, l]) => `<option value="${k}" ${k === cur ? "selected" : ""}>${l}</option>`).join("");
+            const deptOpts = DEPTS.filter((x) => !x.archived).map((x) => [x.id, x.name]);
+            const locOpts = LOCS.filter((x) => !x.archived).map((x) => [x.id, x.name]);
+            const rtOpts = openPeople().sort((a, b) => a.name.localeCompare(b.name)).map((p) => [p.id, p.name]);
+            const emailOk = f.email && !addErrors({ ...f, invite: false }).email;
+            const fieldErr = (k) => `<div class="err" id="err-${k}">${e[k] || ""}</div>`;
+            const typeCard = (val, title, desc) => `<label class="${f.type === val ? "on" : ""}"><input type="radio" id="addtype-${val}" name="addtype" value="${val}" ${f.type === val ? "checked" : ""} onchange="DLG.af('type','${val}',true)"><span><b>${title}</b><span class="small">${desc}</span></span></label>`;
+            const body = `
+              <div class="dlg-sec">${cs ? "Osoba" : "Person"}</div>
+              <div class="fgrid">
+                <div class="field full"><label class="f" for="addname">${t("f_name")}<span class="req">*</span></label><input id="addname" class="${e.name ? "bad" : ""}" value="${f.name}" placeholder="${cs ? "Jméno a příjmení" : "First and last name"}" maxlength="100" oninput="DLG.af('name',this.value)" onblur="DLG.check('name')">${fieldErr("name")}</div>
+                <div class="field full"><div class="choice">
+                  ${typeCard("employee", cs ? "Zaměstnanec" : "Employee", cs ? "Má smlouvu, úvazek a osobní údaje." : "Has a contract, working time and a Personal section.")}
+                  ${typeCard("external", t("external"), cs ? "Bez smlouvy, úvazku a osobních údajů." : "No contract type, working time or Personal section.")}
+                </div></div>
+              </div>
+              <div class="dlg-sec">${t("sec_card")}</div>
+              <div class="fgrid">
+                <div class="field full"><label class="f" for="addtitle">${t("f_title")}</label><input id="addtitle" class="${e.title ? "bad" : ""}" value="${f.title}" maxlength="100" placeholder="${cs ? "např. Skladník" : "e.g. Warehouse operator"}" oninput="DLG.af('title',this.value)">${fieldErr("title")}</div>
+                <div class="field"><label class="f" for="adddept">${t("f_dept")}</label><select id="adddept" onchange="DLG.af('dept',this.value)">${opt(deptOpts, f.dept)}</select><a class="hint" onclick="A.go('/directory/settings/lists')">${cs ? "Spravovat oddělení" : "Manage departments"}</a></div>
+                <div class="field"><label class="f" for="addloc">${t("f_loc")}</label><select id="addloc" onchange="DLG.af('loc',this.value)">${opt(locOpts, f.loc)}</select></div>
+                <div class="field full"><label class="f" for="addrt">${t("f_reportsTo")}</label><select id="addrt" onchange="DLG.af('reportsTo',this.value)">${opt(rtOpts, f.reportsTo)}</select><div class="hint">${cs ? "Jen informativní, nedává žádná práva." : "Informational. It grants no rights."}</div></div>
+              </div>
+              <div class="dlg-sec">${cs ? "Účet" : "Account"}</div>
+              <div class="fgrid">
+                <div class="field full"><label class="f" for="addemail">Email <span class="faint" style="font-weight:500">(${cs ? "nepovinné" : "optional"})</span></label><input id="addemail" type="email" class="${e.email ? "bad" : ""}" value="${f.email}" placeholder="name@example.com" oninput="DLG.af('email',this.value)" onblur="DLG.check('email')">${fieldErr("email")}${`<div class="hint" id="hint-email" ${e.email ? 'style="display:none"' : ""}>${cs ? "Přihlašovací adresa. Kolegové ji v adresáři nikdy neuvidí." : "Their sign-in address. Colleagues never see it on directory pages."}</div>`}</div>
+                <div class="field full"><label id="inv-line" class="checkline ${emailOk ? "" : "dis"}"><input type="checkbox" id="addinv" ${f.invite && emailOk ? "checked" : ""} ${emailOk ? "" : "disabled"} onchange="DLG.af('invite',this.checked);DLG.syncInvite()"><span><b>${cs ? "Poslat pozvánku hned" : "Send a directory invite now"}</b><span id="inv-note" class="small muted" style="display:block">${emailOk ? (cs ? "Přijetím pozvánky se jejich účet propojí s tímto záznamem." : "Redeeming it binds their account to this record. The sign-up form fills in the name.") : (cs ? "Nejdřív vyplňte platný e-mail." : "Needs a valid email first.")}</span></span></label></div>
+              </div>
+              <div class="box small" style="margin-top:14px">${cs ? "Dokud pozvánku nepřijme, existuje osoba jen v adresáři. Nikdo za ni nezadává volno ani docházku." : "Until they redeem an invite, the person exists only in the directory. Nobody books leave or records attendance for them."} ${f.type === "external" ? (cs ? "Externí spolupracovníci se nemohou přihlásit do docházky." : "External workers can't clock in.") : ""}</div>
+              ${Object.keys(e).length ? `<div class="box danger small">${cs ? "Opravte zvýrazněná pole." : "Fix the highlighted fields to continue."}</div>` : ""}`;
+            return dlg(t("addPerson"), body, cancelBtn() + `<button class="btn" id="add-submit" onclick="DLG.add()">${I.plus} ${f.invite && emailOk ? (cs ? "Přidat a pozvat" : "Add and send invite") : t("addPerson")}</button>`, true);
+          }
           case "retention": {
             const has = (p, s) => ({ card: p.card.title, photo: p.photo != null, workContact: p.work.email || p.work.phone, job: p.job.number || p.job.start, contact: p.contact.phone || p.contact.email || p.contact.ec[0].name, personal: p.personal.a1 || p.personal.dob })[s];
             const n = formerPeople().filter((p) => has(p, d.sec) && !p.hold && !p.removed[d.sec] && addP(p.ended, d.val) <= TODAY && (S.ret[d.sec] === "forever" || addP(p.ended, S.ret[d.sec]) > TODAY)).length;
@@ -1294,7 +1355,7 @@
           }
           case "agreement":
             return dlg(`People directory agreement · version ${d.v}`, `<div class="box" style="height:170px;overflow:auto;font-size:13px">(The owner's legal text goes here: Flexi Day processes directory data on ${ORG}'s instructions, no biometric processing of photos, sub-processors, retention, return and deletion at the end of service…)</div>
-              <label class="row" style="margin-top:12px"><input type="checkbox" id="agree" onchange="document.getElementById('agreeBtn').disabled=!this.checked"> I accept this agreement for ${ORG}</label>
+              <label class="checkline" style="margin-top:12px"><input type="checkbox" id="agree" onchange="document.getElementById('agreeBtn').disabled=!this.checked"><span><b>I accept this agreement for ${ORG}</b></span></label>
               <p class="small muted">We record who accepted, when, and which version.</p>`, cancelBtn() + `<button class="btn" id="agreeBtn" disabled onclick="DLG.agree(${d.v})">${S.enabled ? "Accept" : "Accept and turn on"}</button>`, true);
           case "turnoff":
             return dlg("Turn the directory off?", `<p>The directory pages disappear for everyone. Profiles stay stored, retention purges keep running and the organization export still works.</p><p class="small muted">Deleting all directory data is a separate action.${lapsed() ? " <b>While lapsed, you can't turn it back on.</b>" : ""}</p>`, cancelBtn() + `<button class="btn" onclick="S.enabled=false;A.go('/organization');A.toast('Directory off. Data kept.')">Turn off</button>`);
@@ -1344,25 +1405,49 @@
         },
         erase(id) { const r = P[id]; if (document.getElementById("erasename").value.trim() !== r.name) { A.toast("Type the exact name"); return; } r.erased = true; A.go(r.ended ? "/directory/former" : "/directory"); A.toast("Erased"); },
         invite(id) { P[id].invite = "sent"; P[id].email = document.getElementById("invemail").value; A.close(); A.toast("Invite sent"); },
+        af(k, val, rerender) {
+          const f = S.dialog.form;
+          f[k] = val;
+          if (S.dialog.err && S.dialog.err[k] && !addErrors(f)[k]) DLG.patchErr(k, "");
+          if (rerender) render(); else if (k === "email") DLG.syncInvite();
+        },
+        check(k) {
+          if (rendering || !S.dialog) return;
+          DLG.patchErr(k, addErrors(S.dialog.form)[k] || "");
+        },
+        patchErr(k, msg) {
+          S.dialog.err = S.dialog.err || {};
+          if (msg) S.dialog.err[k] = msg; else delete S.dialog.err[k];
+          const input = document.getElementById("add" + k), box = document.getElementById("err-" + k), hint = document.getElementById("hint-" + k);
+          if (input) input.classList.toggle("bad", !!msg);
+          if (box) box.textContent = msg;
+          if (hint) hint.style.display = msg ? "none" : "";
+        },
+        syncInvite() {
+          const f = S.dialog.form, cs = S.lang === "cs";
+          const ok = !!f.email && !addErrors({ ...f, invite: false }).email;
+          const cb = document.getElementById("addinv");
+          cb.disabled = !ok; cb.checked = ok && f.invite;
+          document.getElementById("inv-line").classList.toggle("dis", !ok);
+          document.getElementById("inv-note").textContent = ok ? (cs ? "Přijetím pozvánky se jejich účet propojí s tímto záznamem." : "Redeeming it binds their account to this record. The sign-up form fills in the name.") : cs ? "Nejdřív vyplňte platný e-mail." : "Needs a valid email first.";
+          document.getElementById("add-submit").lastChild.textContent = " " + (ok && f.invite ? (cs ? "Přidat a pozvat" : "Add and send invite") : t("addPerson"));
+        },
         add() {
-          const name = document.getElementById("addname").value.trim(); if (!name) { A.toast("A name is required"); return; }
+          const f = S.dialog.form;
+          const err = addErrors(f);
+          if (Object.keys(err).length) { S.dialog.err = err; render(); return; }
           const id = "n" + Date.now();
-          const p = person({ id, name, email: document.getElementById("addemail").value.trim(), account: "none", start: TODAY, type: document.querySelector('[name="addtype"]:checked').value, card: { title: "", dept: "", loc: "", reportsTo: "" } });
-          if (document.getElementById("addinv").checked && p.email) p.invite = "sent";
-          PEOPLE.push(p); P[id] = p; A.go("/person/" + id + "/edit"); A.toast("Added. Fill in the rest.");
+          const p = person({ id, name: f.name.trim(), email: f.email.trim().toLowerCase(), account: "none", start: TODAY, type: f.type, card: { title: f.title.trim(), dept: f.dept, loc: f.loc, reportsTo: f.reportsTo }, job: J({ start: TODAY }) });
+          if (f.invite && p.email) p.invite = "sent";
+          PEOPLE.push(p); P[id] = p;
+          A.go("/person/" + id);
+          A.toast(p.invite ? `Added ${p.name} and sent the invite` : `Added ${p.name}`);
         },
         agree(v) { S.agreement = { v, by: viewer().name, at: TODAY }; S.enabled = true; S.agreementV2 = false; A.close(); A.toast(`Agreement version ${v} accepted`); },
       };
 
       // ---------- prototype bar ----------
-      function pageVariantKey() {
-        if (S.route === "/directory") return "dv";
-        if (/^\/person\/[^/]+$/.test(S.route)) return "pv";
-        return null;
-      }
-      const VNAMES = { dv: { A: "Cards", B: "Table" }, pv: { A: "One page + rail", B: "Header + tabs" } };
       function protoBar() {
-        const vk = pageVariantKey();
         const jumps = [
           ["/directory", "Directory"], ["/directory/former", "Former list"], ["/person/eva", "Profile · Eva (full)"], ["/person/eva/edit", "Edit · Eva"],
           ["/person/hana", "Profile · Hana (rejoined)"], ["/person/jonas", "Profile · Jonas (external)"], ["/person/petra", "Profile · Petra (no account)"],
@@ -1374,7 +1459,6 @@
           <label>viewer <select onchange="A.set('role',this.value)">${Object.entries(VIEWERS).map(([k, id]) => `<option value="${k}" ${S.role === k ? "selected" : ""}>${D.en["aud_" + k]} · ${P[id].name}</option>`).join("")}</select></label>
           <label>plan <select onchange="A.set('plan',this.value)"><option value="ent" ${S.plan === "ent" ? "selected" : ""}>Enterprise</option><option value="lapsed" ${S.plan === "lapsed" ? "selected" : ""}>Pro, lapsed (holds data)</option><option value="none" ${S.plan === "none" ? "selected" : ""}>Pro, never had it</option></select></label>
           <label>go <select onchange="A.go(this.value)"><option value="">jump to…</option>${jumps.map(([p, l]) => `<option value="${p}">${l}</option>`).join("")}</select></label>
-          ${vk ? `<button onclick="A.variant(-1)">←</button><span>${S[vk]} · ${VNAMES[vk][S[vk]]}</span><button onclick="A.variant(1)">→</button>` : ""}
           <label><input type="checkbox" ${S.ann ? "checked" : ""} onchange="A.set('ann',this.checked)"> notes</label>
         </div>`;
       }
@@ -1390,22 +1474,22 @@
         }
         return pageDirectory();
       }
+      let rendering = false;
       function render() {
         const ae = document.activeElement;
         const focusId = ae && ae.id;
         const sel = ae && "selectionStart" in ae ? ae.selectionStart : null;
+        rendering = true;
         document.getElementById("app").innerHTML = shell(page()) + dialog() + protoBar() + (S.toast ? `<div class="toast">${S.toast}</div>` : "");
+        rendering = false;
         if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus(); if (sel != null && el.setSelectionRange) try { el.setSelectionRange(sel, sel); } catch (e) {} } }
       }
       document.addEventListener("keydown", (e) => {
         if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) return;
-        if (e.key === "ArrowLeft") A.variant(-1);
-        if (e.key === "ArrowRight") A.variant(1);
         if (e.key === "Escape") A.close();
       });
       window.addEventListener("popstate", () => { parseHash(); render(); });
       parseHash();
-      logReadIfNeeded();
       render();
     </script>
   </body>
