@@ -1,0 +1,1412 @@
+<!doctype html>
+<!--
+  PROTOTYPE, throw away. T-478 "Design the directory and profile web pages".
+  One self-contained file: fake data, state in memory, no backend.
+  Question it answers: how the directory, profile, edit form, settings and dialogs
+  look and behave on the web, and how the permission table changes them per viewer.
+  Pages are hash routes (#/directory, #/person/eva, ...). The dark bar at the
+  bottom is the prototype's own control: viewer, plan, layout variant, annotations.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PROTOTYPE · Directory web pages (T-478)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --accent-h: 285;
+        --accent-c: 0.165;
+        --bg: oklch(0.985 0.008 78);
+        --surface: oklch(0.998 0.004 80);
+        --surface-2: oklch(0.972 0.009 78);
+        --border: oklch(0.915 0.01 80);
+        --border-strong: oklch(0.86 0.012 80);
+        --text: oklch(0.26 0.018 290);
+        --muted: oklch(0.52 0.014 288);
+        --faint: oklch(0.66 0.012 288);
+        --primary: oklch(0.55 var(--accent-c) var(--accent-h));
+        --primary-strong: oklch(0.48 var(--accent-c) var(--accent-h));
+        --primary-soft: oklch(0.55 var(--accent-c) var(--accent-h) / 0.1);
+        --warm: oklch(0.6 0.14 42);
+        --warm-soft: oklch(0.66 0.14 42 / 0.12);
+        --danger: oklch(0.58 0.18 25);
+        --danger-soft: oklch(0.58 0.18 25 / 0.1);
+        --ok: oklch(0.52 0.13 155);
+        --ok-soft: oklch(0.58 0.13 155 / 0.14);
+        --review: oklch(0.5 0.13 240);
+        --review-soft: oklch(0.55 0.13 240 / 0.12);
+        --shadow: 0 8px 24px -10px oklch(0.3 0.03 288 / 0.18), 0 2px 6px -2px oklch(0.3 0.03 288 / 0.1);
+        --shadow-lg: 0 30px 60px -22px oklch(0.3 0.04 288 / 0.38);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 14px/1.45 "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      h1, h2, h3 { font-family: "Bricolage Grotesque", "Hanken Grotesk", sans-serif; margin: 0; }
+      h1 { font-size: 24px; font-weight: 700; }
+      h2 { font-size: 16px; font-weight: 600; }
+      h3 { font-size: 16px; font-weight: 600; }
+      a { color: var(--primary-strong); text-decoration: none; cursor: pointer; }
+      a:hover { text-decoration: underline; }
+      .ic { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; vertical-align: -3px; }
+      .muted { color: var(--muted); }
+      .faint { color: var(--faint); }
+      .small { font-size: 12.5px; }
+      .row { display: flex; align-items: center; gap: 8px; }
+      .wrap { flex-wrap: wrap; }
+      .grow { flex: 1; }
+      .stack > * + * { margin-top: 16px; }
+      .stack-s > * + * { margin-top: 8px; }
+
+      /* shell */
+      .shell { display: flex; min-height: 100vh; }
+      .side { width: 248px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+      .logo { display: flex; align-items: center; gap: 8px; padding: 16px 14px 6px; font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; font-size: 18px; }
+      .logo i { width: 25px; height: 25px; border-radius: 8px; background: linear-gradient(140deg, var(--primary), oklch(0.66 0.14 42)); display: inline-block; }
+      .navsec { padding: 12px 10px 4px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
+      .nav { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; margin: 1px 6px; border-radius: 10px; font-weight: 600; color: var(--muted); cursor: pointer; }
+      .nav:hover { background: var(--surface-2); color: var(--text); }
+      .nav.on { background: var(--primary-soft); color: var(--primary-strong); }
+      .nav .tagx { margin-left: auto; }
+      .nav.dead { cursor: default; opacity: 0.55; }
+      .side-foot { margin-top: auto; border-top: 1px solid var(--border); padding: 8px 4px 12px; }
+      .me { display: flex; gap: 10px; align-items: center; padding: 8px 10px 0; }
+      .main { flex: 1; min-width: 0; padding-bottom: 120px; }
+      .top { position: sticky; top: 0; z-index: 20; height: 60px; display: flex; align-items: center; gap: 10px; padding: 0 24px; border-bottom: 1px solid var(--border); background: color-mix(in oklch, var(--bg) 82%, transparent); backdrop-filter: blur(14px); }
+      .crumb { font-weight: 600; font-size: 15px; }
+      .crumb span { color: var(--muted); }
+      .content { max-width: 1340px; margin: 0 auto; padding: 32px 28px; }
+      .lang { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 999px; overflow: hidden; }
+      .lang button { border: 0; background: transparent; padding: 5px 10px; font: inherit; font-weight: 700; font-size: 12px; cursor: pointer; color: var(--muted); }
+      .lang button.on { background: var(--primary-soft); color: var(--primary-strong); }
+
+      /* atoms */
+      .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid transparent; background: var(--primary); color: white; font: inherit; font-weight: 600; cursor: pointer; white-space: nowrap; }
+      .btn:hover { filter: brightness(1.06); }
+      .btn.sm { height: 30px; padding: 0 11px; font-size: 13px; }
+      .btn.xs { height: 24px; padding: 0 9px; font-size: 12px; }
+      .btn.out { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+      .btn.out:hover { background: var(--surface-2); filter: none; }
+      .btn.ghost { background: transparent; color: var(--text); }
+      .btn.ghost:hover { background: var(--surface-2); filter: none; }
+      .btn.danger { background: var(--danger-soft); color: var(--danger); }
+      .btn:disabled, .btn.disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+      .card { background: var(--surface); border-radius: 18px; box-shadow: 0 0 0 1px oklch(0.26 0.018 290 / 0.08); padding: 20px 22px; }
+      .card.tight { padding: 14px 16px; }
+      .card-h { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+      .chip { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 11.5px; font-weight: 700; background: var(--surface-2); color: var(--muted); white-space: nowrap; }
+      .chip.p { background: var(--primary-soft); color: var(--primary-strong); }
+      .chip.ok { background: var(--ok-soft); color: var(--ok); }
+      .chip.warm { background: var(--warm-soft); color: var(--warm); }
+      .chip.danger { background: var(--danger-soft); color: var(--danger); }
+      .chip.rev { background: var(--review-soft); color: var(--review); }
+      .chip.line { background: transparent; box-shadow: inset 0 0 0 1px var(--border-strong); }
+      input, select, textarea { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 10px; height: 36px; padding: 0 10px; min-width: 0; }
+      textarea { height: auto; padding: 8px 10px; width: 100%; }
+      input:disabled, select:disabled, textarea:disabled { background: var(--surface-2); color: var(--muted); }
+      input:focus, select:focus, textarea:focus { outline: 2px solid oklch(0.55 0.165 285 / 0.4); outline-offset: 0; }
+      label.f { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 4px; }
+      .field { display: flex; flex-direction: column; min-width: 0; }
+      .field input, .field select { width: 100%; }
+      .fgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+      .fgrid .full { grid-column: 1 / -1; }
+      .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+      .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 20px 0; }
+      .tab { padding: 9px 14px; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+      .tab.on { color: var(--primary-strong); border-color: var(--primary); }
+      .tab .n { font-size: 11px; background: var(--surface-2); border-radius: 999px; padding: 1px 7px; color: var(--muted); }
+      table.t { width: 100%; border-collapse: collapse; }
+      table.t th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--faint); font-weight: 700; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+      table.t td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+      table.t tr.click:hover td { background: var(--surface-2); cursor: pointer; }
+      .banner { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: var(--warm-soft); color: oklch(0.4 0.1 42); margin-bottom: 16px; }
+      .banner.p { background: var(--primary-soft); color: var(--primary-strong); }
+      .banner.rev { background: var(--review-soft); color: var(--review); }
+      .banner .btn { margin-left: auto; }
+      dl.fl { margin: 0; display: grid; grid-template-columns: 180px 1fr; gap: 0; }
+      dl.fl dt, dl.fl dd { margin: 0; padding: 7px 0; border-bottom: 1px dashed var(--border); }
+      dl.fl dt { color: var(--muted); }
+      dl.fl dt:nth-last-child(2), dl.fl dd:last-child { border-bottom: 0; }
+
+      /* avatar */
+      .av { position: relative; display: inline-grid; place-items: center; border-radius: 999px; font-weight: 700; flex-shrink: 0; overflow: visible; }
+      .av > svg { border-radius: 999px; }
+      .av .src { position: absolute; right: -4px; bottom: -4px; font-size: 9px; line-height: 1; padding: 2px 4px; border-radius: 6px; background: oklch(0.2 0.02 290); color: white; font-weight: 700; letter-spacing: 0.03em; }
+
+      /* directory */
+      .filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+      .filters input[type="search"] { width: 260px; }
+      .pgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 14px; }
+      .pcard { background: var(--surface); border-radius: 18px; box-shadow: 0 0 0 1px oklch(0.26 0.018 290 / 0.08); padding: 16px; cursor: pointer; display: flex; flex-direction: column; gap: 10px; }
+      .pcard:hover { box-shadow: 0 0 0 1px var(--primary), var(--shadow); }
+      .pname { font-weight: 700; font-size: 15px; }
+      .pmeta { font-size: 12.5px; color: var(--muted); }
+      .pcontact { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; border-top: 1px dashed var(--border); padding-top: 8px; }
+      .pcontact span { display: flex; gap: 6px; align-items: center; color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+      /* profile */
+      .pgridA { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 20px; align-items: start; }
+      .phead { display: flex; gap: 18px; align-items: center; }
+      .sec-h { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+      .sec-h h2 { flex: 0 0 auto; }
+      .sec-note { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; margin: -4px 0 10px; }
+      .removal { font-size: 12.5px; font-weight: 600; padding: 6px 10px; border-radius: 10px; margin-bottom: 10px; display: inline-flex; gap: 6px; align-items: center; }
+      .removal.due { background: var(--warm-soft); color: var(--warm); }
+      .removal.gone { background: var(--surface-2); color: var(--muted); }
+      .removal.keep { background: var(--surface-2); color: var(--muted); }
+      .removal.hold { background: var(--review-soft); color: var(--review); }
+      .hiddenph { border: 1.5px dashed oklch(0.55 0.165 285 / 0.35); border-radius: 18px; padding: 12px 16px; color: var(--primary-strong); font-size: 12.5px; background: oklch(0.55 0.165 285 / 0.03); }
+      .hiddenph b { font-weight: 700; }
+      .actions { display: flex; flex-direction: column; gap: 2px; }
+      .act { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; cursor: pointer; font-weight: 600; border: 0; background: transparent; font: inherit; font-weight: 600; text-align: left; color: var(--text); width: 100%; }
+      .act:hover { background: var(--surface-2); }
+      .act.dis { color: var(--faint); cursor: not-allowed; }
+      .act.dis:hover { background: transparent; }
+      .act .why { font-weight: 500; font-size: 11.5px; color: var(--faint); display: block; }
+      .act.danger { color: var(--danger); }
+
+      /* edit */
+      .esec { scroll-margin-top: 80px; }
+      .esec.ro .fgrid { opacity: 0.6; }
+      .phone { display: flex; gap: 6px; }
+      .phone select { width: 112px; flex-shrink: 0; }
+      .phone input { flex: 1; }
+      .notice { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: var(--review-soft); color: oklch(0.36 0.09 240); font-size: 13px; }
+      .notice b { display: block; margin-bottom: 4px; }
+      .clearbtn { align-self: flex-start; margin-top: 4px; padding: 0 4px; }
+      .lockline { font-size: 12px; color: var(--muted); display: flex; gap: 5px; align-items: center; margin-top: 4px; }
+
+      /* permission table */
+      table.perm td, table.perm th { text-align: center; padding: 7px 6px; }
+      table.perm td:first-child, table.perm th:first-child { text-align: left; padding-left: 4px; }
+      table.perm select { height: 30px; padding: 0 6px; border-radius: 8px; font-size: 13px; }
+      table.perm tr.actrow td:first-child { color: var(--muted); }
+      .pill { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 9px; border-radius: 8px; font-size: 12.5px; font-weight: 600; }
+      .pill.none { background: var(--surface-2); color: var(--faint); }
+      .pill.read, .pill.allowed { background: var(--review-soft); color: var(--review); }
+      .pill.write { background: var(--ok-soft); color: var(--ok); }
+      .pill.no { background: var(--surface-2); color: var(--faint); }
+      .pill.fixed { box-shadow: inset 0 0 0 1.5px currentColor; }
+      .lvl-none { color: var(--faint); }
+      .settings { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; align-items: start; }
+      .subnav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 80px; }
+
+      /* dialog */
+      .ov { position: fixed; inset: 0; background: oklch(0.2 0.02 290 / 0.4); display: grid; place-items: center; z-index: 50; padding: 20px; }
+      .dlg { background: var(--surface); border-radius: 20px; width: 520px; max-width: 100%; max-height: calc(100vh - 40px); overflow: auto; box-shadow: var(--shadow-lg); }
+      .dlg.wide { width: 680px; }
+      .dlg-h { display: flex; align-items: center; padding: 18px 22px 6px; }
+      .dlg-h h3 { flex: 1; }
+      .dlg-b { padding: 8px 22px 6px; }
+      .dlg-b p { margin: 0 0 10px; }
+      .dlg-f { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 22px 18px; }
+      .x { border: 0; background: transparent; font-size: 22px; cursor: pointer; color: var(--muted); }
+      .box { border-radius: 12px; background: var(--surface-2); padding: 10px 12px; margin: 10px 0; }
+      .box ul { margin: 4px 0 0; padding-left: 18px; }
+      .box.warn { background: var(--warm-soft); color: oklch(0.42 0.1 42); }
+      .box.danger { background: var(--danger-soft); color: var(--danger); }
+      .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 460px; background: var(--surface); box-shadow: var(--shadow-lg); z-index: 50; overflow: auto; padding: 20px 22px; }
+      .toast { position: fixed; left: 50%; bottom: 86px; transform: translateX(-50%); background: oklch(0.26 0.018 290); color: white; padding: 10px 16px; border-radius: 12px; font-weight: 600; z-index: 60; box-shadow: var(--shadow); }
+      .spinner { width: 16px; height: 16px; border-radius: 999px; border: 2px solid var(--border-strong); border-top-color: var(--primary); animation: spin 0.8s linear infinite; display: inline-block; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      /* prototype bar: deliberately not product styling */
+      .proto { position: fixed; left: 50%; bottom: 14px; transform: translateX(-50%); width: max-content; z-index: 70; display: flex; gap: 10px; align-items: center; background: #111; color: #eee; padding: 8px 12px; border-radius: 14px; box-shadow: 0 10px 30px #0006; font: 12.5px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; max-width: calc(100vw - 20px); flex-wrap: wrap; justify-content: center; }
+      .proto select { background: #222; color: #fff; border: 1px solid #444; height: 28px; border-radius: 7px; font: inherit; padding: 0 6px; max-width: 200px; }
+      body.shot .proto { display: none; }
+      .proto .tag { background: #ffd23f; color: #111; font-weight: 800; padding: 3px 7px; border-radius: 6px; }
+      .proto button { background: #222; color: #fff; border: 1px solid #444; border-radius: 7px; height: 28px; padding: 0 8px; font: inherit; cursor: pointer; }
+      .proto label { display: flex; align-items: center; gap: 5px; }
+      .ann { font: 11.5px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; color: oklch(0.45 0.15 285); background: oklch(0.55 0.165 285 / 0.06); border-left: 3px solid oklch(0.55 0.165 285 / 0.5); padding: 6px 10px; border-radius: 0 8px 8px 0; margin: 8px 0; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      // ---------- icons ----------
+      const I = {
+        lock: '<svg viewBox="0 0 24 24" class="ic"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
+        mail: '<svg viewBox="0 0 24 24" class="ic"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
+        phone: '<svg viewBox="0 0 24 24" class="ic"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/></svg>',
+        users: '<svg viewBox="0 0 24 24" class="ic"><circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0"/><path d="M16 4a4 4 0 0 1 0 8M22 21a7 7 0 0 0-4-6.3"/></svg>',
+        book: '<svg viewBox="0 0 24 24" class="ic"><path d="M4 19V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2Z"/><path d="M8 7h7M8 11h5"/></svg>',
+        building: '<svg viewBox="0 0 24 24" class="ic"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1"/></svg>',
+        card: '<svg viewBox="0 0 24 24" class="ic"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>',
+        grid: '<svg viewBox="0 0 24 24" class="ic"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>',
+        cal: '<svg viewBox="0 0 24 24" class="ic"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+        chart: '<svg viewBox="0 0 24 24" class="ic"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+        sync: '<svg viewBox="0 0 24 24" class="ic"><path d="M20 12a8 8 0 0 0-14-5.3L4 9M4 12a8 8 0 0 0 14 5.3L20 15"/><path d="M4 4v5h5M20 20v-5h-5"/></svg>',
+        timer: '<svg viewBox="0 0 24 24" class="ic"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M10 2h4"/></svg>',
+        gear: '<svg viewBox="0 0 24 24" class="ic"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/></svg>',
+        pay: '<svg viewBox="0 0 24 24" class="ic"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>',
+        dl: '<svg viewBox="0 0 24 24" class="ic"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 21h16"/></svg>',
+        pen: '<svg viewBox="0 0 24 24" class="ic"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/></svg>',
+        send: '<svg viewBox="0 0 24 24" class="ic"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7Z"/></svg>',
+        swap: '<svg viewBox="0 0 24 24" class="ic"><path d="M7 4 3 8l4 4M3 8h14M17 20l4-4-4-4M21 16H7"/></svg>',
+        stop: '<svg viewBox="0 0 24 24" class="ic"><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/></svg>',
+        hist: '<svg viewBox="0 0 24 24" class="ic"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 2"/></svg>',
+        pause: '<svg viewBox="0 0 24 24" class="ic"><circle cx="12" cy="12" r="9"/><path d="M10 9v6M14 9v6"/></svg>',
+        trash: '<svg viewBox="0 0 24 24" class="ic"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+        copy: '<svg viewBox="0 0 24 24" class="ic"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
+        plus: '<svg viewBox="0 0 24 24" class="ic"><path d="M12 5v14M5 12h14"/></svg>',
+        eye: '<svg viewBox="0 0 24 24" class="ic"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>',
+        cam: '<svg viewBox="0 0 24 24" class="ic"><path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/></svg>',
+        spark: '<svg viewBox="0 0 24 24" class="ic"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/></svg>',
+      };
+      const SIL = (op) =>
+        `<svg viewBox="0 0 40 40" width="100%" height="100%"><circle cx="20" cy="15" r="7" fill="oklch(1 0 0 / ${op})"/><path d="M6 40c1-9 7-13 14-13s13 4 14 13" fill="oklch(1 0 0 / ${op})"/></svg>`;
+
+      // ---------- i18n (chrome only; long body copy stays English in the prototype) ----------
+      const D = {
+        en: {
+          timeOff: "Time off", dashboard: "Dashboard", requests: "Requests", report: "Report", groups: "Groups", calendarSync: "Calendar sync",
+          attendance: "Attendance", myAttendance: "My attendance", peopleSec: "People", directory: "Directory", orgSec: "Organization", organization: "Organization", billing: "Billing", settings: "Settings",
+          dirTitle: "Directory", dirSub: "Everyone at Acme s.r.o. Each person's record shows what your role is allowed to see.",
+          tabPeople: "People", tabFormer: "Former", tabSettings: "Directory settings",
+          search: "Search name or job title", allDepts: "All departments", allLocs: "All locations", allTypes: "Employees and external workers", onlyEmp: "Employees", onlyExt: "External workers",
+          addPerson: "Add person", you: "You", external: "External worker", noAccount: "No account", inviteSent: "Invite sent", accountDeleted: "Account deleted", yourGroup: "In your group", rejoined: "Rejoined", hold: "Retention hold",
+          sec_card: "Card", sec_photo: "Photo", sec_workContact: "Work contact", sec_job: "Job", sec_contact: "Contact", sec_personal: "Personal",
+          aud_owner: "Owner", aud_self: "Self", aud_colleague: "Colleague", aud_external: "External worker", aud_groupAdmin: "Group admin", aud_hr: "HR", aud_leadership: "Leadership", aud_orgAdmin: "Org admin",
+          act_create: "Create account-less person", act_invite: "Send directory invite", act_changeType: "Change worker type", act_end: "End an Employment", act_manageLists: "Manage departments and locations",
+          lv_none: "None", lv_read: "Read", lv_write: "Write", lv_allowed: "Allowed", lv_no: "No",
+          per_end: "At end", per_30d: "30 days", per_6m: "6 months", per_1y: "1 year", per_3y: "3 years", per_5y: "5 years", per_10y: "10 years", per_forever: "Until erased",
+          f_name: "Name", f_signIn: "Sign-in email", f_title: "Job title", f_dept: "Department", f_loc: "Location", f_reportsTo: "Reports to", f_workEmail: "Work email", f_workPhone: "Work phone",
+          f_legal: "Legal name", f_number: "Employee number", f_start: "Start date", f_probation: "Probation end date", f_leaving: "Leaving date", f_contract: "Contract type", f_wt: "Working time",
+          f_pphone: "Private phone", f_pemail: "Private email", f_ec: "Emergency contact", f_ecName: "Name", f_ecPhone: "Phone", f_address: "Home address", f_dob: "Date of birth",
+          f_a1: "Address line 1", f_a2: "Address line 2", f_postal: "Postal code", f_city: "City", f_region: "Region", f_country: "Country",
+          ct_permanent: "Permanent", ct_fixed: "Fixed-term", ct_apprentice: "Apprenticeship", ct_intern: "Internship", ct_other: "Other", wt_full: "Full-time", wt_part: "Part-time",
+          editable: "Editable", readOnly: "Read-only", clearOnly: "Clear only", hidden: "Hidden",
+          edit: "Edit", editProfile: "Edit profile", save: "Save changes", cancel: "Cancel", close: "Close", confirm: "Confirm",
+          invite: "Send invite", changeType: "Change type", endEmp: "End Employment", endEng: "End engagement", exportPerson: "Export person", exportMine: "Export my data", history: "Profile history", setHold: "Set retention hold", liftHold: "Lift retention hold", erase: "Erase person",
+          copyPrev: "Copy from previous spell", record: "Record", actions: "Actions",
+          perms: "Permission table", roles: "Directory roles", retention: "Retention", lists: "Departments and locations", readLog: "Read log", general: "General",
+          sensitiveNote: "Encrypted. Reads by anyone but the person go to the read log.",
+          removedOn: "Removed by retention on {d}", dueOn: "Removed on {d}", dueTonight: "Removed at tonight's run", keep: "Kept until erased", heldNo: "On hold, nothing is removed",
+          department: "Departments", location: "Locations", add: "Add", rename: "Rename", archive: "Archive", restore: "Restore", del: "Delete",
+          seePlans: "See plans", availEnt: "Enterprise",
+        },
+        cs: {
+          timeOff: "Volno", dashboard: "Přehled", requests: "Žádosti", report: "Report", groups: "Skupiny", calendarSync: "Synchronizace kalendáře",
+          attendance: "Docházka", myAttendance: "Moje docházka", peopleSec: "Lidé", directory: "Adresář zaměstnanců", orgSec: "Organizace", organization: "Organizace", billing: "Fakturace", settings: "Nastavení",
+          dirTitle: "Adresář zaměstnanců", dirSub: "Všichni v Acme s.r.o. U každého vidíte to, co vaše role smí vidět.",
+          tabPeople: "Lidé", tabFormer: "Bývalí", tabSettings: "Nastavení adresáře",
+          search: "Hledat jméno nebo pozici", allDepts: "Všechna oddělení", allLocs: "Všechna pracoviště", allTypes: "Zaměstnanci i externí spolupracovníci", onlyEmp: "Zaměstnanci", onlyExt: "Externí spolupracovníci",
+          addPerson: "Přidat osobu", you: "Vy", external: "Externí spolupracovník", noAccount: "Bez účtu", inviteSent: "Pozvánka odeslána", accountDeleted: "Účet smazán", yourGroup: "Ve vaší skupině", rejoined: "Znovu nastoupil(a)", hold: "Pozastavený výmaz",
+          sec_card: "Vizitka", sec_photo: "Fotografie", sec_workContact: "Pracovní kontakt", sec_job: "Pracovní poměr", sec_contact: "Soukromý kontakt", sec_personal: "Osobní údaje",
+          aud_owner: "Vlastník", aud_self: "Sám/sama", aud_colleague: "Kolega", aud_external: "Externí spolupracovník", aud_groupAdmin: "Správce skupiny", aud_hr: "HR", aud_leadership: "Vedení", aud_orgAdmin: "Správce organizace",
+          act_create: "Vytvořit osobu bez účtu", act_invite: "Poslat pozvánku do adresáře", act_changeType: "Změnit typ pracovníka", act_end: "Ukončit pracovní poměr", act_manageLists: "Spravovat oddělení a pracoviště",
+          lv_none: "Nic", lv_read: "Čtení", lv_write: "Zápis", lv_allowed: "Povoleno", lv_no: "Ne",
+          per_end: "Při ukončení", per_30d: "30 dní", per_6m: "6 měsíců", per_1y: "1 rok", per_3y: "3 roky", per_5y: "5 let", per_10y: "10 let", per_forever: "Do výmazu",
+          f_name: "Jméno", f_signIn: "Přihlašovací e-mail", f_title: "Pracovní pozice", f_dept: "Oddělení", f_loc: "Pracoviště", f_reportsTo: "Nadřízený", f_workEmail: "Pracovní e-mail", f_workPhone: "Pracovní telefon",
+          f_legal: "Úřední jméno", f_number: "Osobní číslo", f_start: "Datum nástupu", f_probation: "Konec zkušební doby", f_leaving: "Datum odchodu", f_contract: "Typ smlouvy", f_wt: "Pracovní úvazek",
+          f_pphone: "Soukromý telefon", f_pemail: "Soukromý e-mail", f_ec: "Kontakt pro případ nouze", f_ecName: "Jméno", f_ecPhone: "Telefon", f_address: "Adresa bydliště", f_dob: "Datum narození",
+          f_a1: "Ulice a číslo", f_a2: "Doplněk adresy", f_postal: "PSČ", f_city: "Obec", f_region: "Kraj", f_country: "Země",
+          ct_permanent: "Na dobu neurčitou", ct_fixed: "Na dobu určitou", ct_apprentice: "Učňovská", ct_intern: "Stáž", ct_other: "Jiná", wt_full: "Plný úvazek", wt_part: "Částečný úvazek",
+          editable: "Upravitelné", readOnly: "Jen ke čtení", clearOnly: "Jen vymazat", hidden: "Skryté",
+          edit: "Upravit", editProfile: "Upravit profil", save: "Uložit změny", cancel: "Zrušit", close: "Zavřít", confirm: "Potvrdit",
+          invite: "Poslat pozvánku", changeType: "Změnit typ", endEmp: "Ukončit pracovní poměr", endEng: "Ukončit spolupráci", exportPerson: "Exportovat osobu", exportMine: "Exportovat moje údaje", history: "Historie profilu", setHold: "Pozastavit výmaz", liftHold: "Zrušit pozastavení výmazu", erase: "Vymazat osobu",
+          copyPrev: "Zkopírovat z předchozího poměru", record: "Záznam", actions: "Akce",
+          perms: "Tabulka oprávnění", roles: "Role v adresáři", retention: "Doba uchování", lists: "Oddělení a pracoviště", readLog: "Záznam čtení", general: "Obecné",
+          sensitiveNote: "Šifrováno. Čtení kýmkoli kromě dané osoby se zapisuje do záznamu čtení.",
+          removedOn: "Vymazáno po uplynutí doby uchování {d}", dueOn: "Bude vymazáno {d}", dueTonight: "Vymaže se dnes v noci", keep: "Uchováno do výmazu", heldNo: "Výmaz pozastaven, nic se nemaže",
+          department: "Oddělení", location: "Pracoviště", add: "Přidat", rename: "Přejmenovat", archive: "Archivovat", restore: "Obnovit", del: "Smazat",
+          seePlans: "Zobrazit tarify", availEnt: "Enterprise",
+        },
+      };
+      const t = (k, vars) => {
+        let s = (D[S.lang] && D[S.lang][k]) ?? D.en[k] ?? k;
+        if (vars) for (const [a, b] of Object.entries(vars)) s = s.replace("{" + a + "}", b);
+        return s;
+      };
+
+      // ---------- constants ----------
+      const TODAY = "2026-10-25";
+      const SECTIONS = ["card", "photo", "workContact", "job", "contact", "personal"];
+      const AUDS = ["owner", "self", "colleague", "external", "groupAdmin", "hr", "leadership", "orgAdmin"];
+      const ACTS = ["create", "invite", "changeType", "end", "manageLists"];
+      const ORD = { none: 0, read: 1, write: 2 };
+      const PERIODS = ["end", "30d", "6m", "1y", "3y", "5y", "10y", "forever"];
+      const COUNTRIES = [
+        ["CZ", "Czechia", "Česko", "+420"], ["SK", "Slovakia", "Slovensko", "+421"], ["DE", "Germany", "Německo", "+49"],
+        ["AT", "Austria", "Rakousko", "+43"], ["PL", "Poland", "Polsko", "+48"], ["HU", "Hungary", "Maďarsko", "+36"],
+      ];
+      const ORG = "Acme s.r.o.";
+      const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      function fd(iso) {
+        if (!iso) return "";
+        const [y, m, d] = iso.split("-").map(Number);
+        return S.lang === "cs" ? `${d}. ${m}. ${y}` : `${d} ${MON[m - 1]} ${y}`;
+      }
+      function addP(iso, p) {
+        const d = new Date(iso + "T00:00:00Z");
+        if (p === "end") return iso;
+        if (p === "30d") d.setUTCDate(d.getUTCDate() + 30);
+        else if (p === "6m") d.setUTCMonth(d.getUTCMonth() + 6);
+        else { const y = { "1y": 1, "3y": 3, "5y": 5, "10y": 10 }[p]; d.setUTCFullYear(d.getUTCFullYear() + y); }
+        return d.toISOString().slice(0, 10);
+      }
+      const plus7 = () => addP(TODAY, "30d").replace(/.*/, () => { const d = new Date(TODAY + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + 7); return d.toISOString().slice(0, 10); });
+
+      // ---------- fake data ----------
+      const DEPTS = [
+        { id: "eng", name: "Engineering" }, { id: "sup", name: "Customer support & operations" }, { id: "fin", name: "Finance & HR" },
+        { id: "ops", name: "Warehouse" }, { id: "sal", name: "Sales" }, { id: "mkt", name: "Marketing", archived: true }, { id: "leg", name: "Legal", archived: true },
+      ];
+      const LOCS = [
+        { id: "prg", name: "Prague HQ", country: "CZ" }, { id: "brn", name: "Brno warehouse", country: "CZ" }, { id: "ber", name: "Berlin office", country: "DE" },
+        { id: "rem", name: "Remote", country: null }, { id: "ost", name: "Ostrava", country: "CZ", archived: true },
+      ];
+      const E = () => ({ phone: "", email: "", ec: [{ name: "", phone: "" }, { name: "", phone: "" }] });
+      const PE = () => ({ a1: "", a2: "", postal: "", city: "", region: "", country: "", dob: "" });
+      const J = (o = {}) => ({ legal: "", number: "", start: "", probation: "", leaving: "", contract: "", wt: "", ...o });
+      function person(o) {
+        return {
+          type: "employee", account: "bound", invite: null, ended: null, groups: [], manages: [], roles: [], orgAdmin: false, owner: false,
+          hold: null, photo: null, acct: null, removed: {}, prevSpell: null, rejoinedAs: null,
+          work: { email: "", phone: "" }, job: J(), contact: E(), personal: PE(), ...o,
+        };
+      }
+      const PEOPLE = [
+        person({ id: "richard", name: "Richard Kolář", email: "richard@acme.cz", owner: true, start: "2019-01-07", photo: 40, acct: 200,
+          card: { title: "Managing director", dept: "fin", loc: "prg", reportsTo: "" }, work: { email: "richard.kolar@acme.cz", phone: "+420 602 111 000" },
+          job: J({ number: "A-0001", start: "2019-01-07", contract: "permanent", wt: "full" }) }),
+        person({ id: "martin", name: "Martin Svoboda", email: "martin.svoboda@gmail.com", orgAdmin: true, start: "2020-05-01", acct: 150,
+          card: { title: "Operations manager", dept: "ops", loc: "prg", reportsTo: "richard" }, work: { email: "martin.svoboda@acme.cz", phone: "+420 602 111 020" },
+          job: J({ number: "A-0007", start: "2020-05-01", contract: "permanent", wt: "full" }) }),
+        person({ id: "lucie", name: "Lucie Králová", email: "lucie.kralova@acme.cz", roles: ["hr"], start: "2021-02-01", photo: 330,
+          card: { title: "HR manager", dept: "fin", loc: "prg", reportsTo: "richard" }, work: { email: "lucie.kralova@acme.cz", phone: "+420 602 111 030" },
+          job: J({ number: "A-0012", start: "2021-02-01", contract: "permanent", wt: "full" }) }),
+        person({ id: "tomas", name: "Tomáš Novák", email: "tomas@novak.dev", roles: ["leadership"], start: "2020-09-01", acct: 250,
+          card: { title: "Head of engineering", dept: "eng", loc: "prg", reportsTo: "richard" }, work: { email: "tomas.novak@acme.cz", phone: "+420 602 111 040" },
+          job: J({ number: "A-0009", start: "2020-09-01", leaving: "2026-10-23", contract: "permanent", wt: "full" }) }),
+        person({ id: "jakub", name: "Jakub Procházka", email: "jakub.prochazka@acme.cz", start: "2023-03-01", groups: ["eng"],
+          card: { title: "Backend developer", dept: "eng", loc: "rem", reportsTo: "tomas" }, work: { email: "jakub.prochazka@acme.cz", phone: "" },
+          job: J({ number: "A-0031", start: "2023-03-01", contract: "permanent", wt: "full" }) }),
+        person({ id: "marketa", name: "Markéta Černá", email: "marketa.cerna@acme.cz", start: "2022-01-10", manages: ["support"], photo: 20,
+          card: { title: "Support team lead", dept: "sup", loc: "prg", reportsTo: "martin" }, work: { email: "marketa.cerna@acme.cz", phone: "+420 602 111 050" },
+          job: J({ number: "A-0018", start: "2022-01-10", contract: "permanent", wt: "full" }) }),
+        person({ id: "eva", name: "Eva Horáková", email: "eva.horakova@seznam.cz", start: "2024-03-01", groups: ["support"], photo: 300, acct: 90,
+          card: { title: "Support specialist", dept: "sup", loc: "prg", reportsTo: "marketa" }, work: { email: "eva.horakova@acme.cz", phone: "+420 602 111 061" },
+          job: J({ legal: "Eva Horáková Nováková", number: "A-0044", start: "2024-03-01", probation: "2024-06-01", contract: "permanent", wt: "part" }),
+          contact: { phone: "+420 777 123 456", email: "eva.h@seznam.cz", ec: [{ name: "Petr Horák", phone: "+420 731 222 333" }, { name: "", phone: "" }] },
+          personal: { a1: "Vinohradská 1234/56", a2: "", postal: "130 00", city: "Praha 3", region: "Hlavní město Praha", country: "CZ", dob: "1994-07-18" } }),
+        person({ id: "hana", name: "Hana Marková", email: "hana.markova@email.cz", start: "2026-10-01", groups: ["support"], acct: 60, prevSpell: "hana0",
+          card: { title: "Seasonal support agent", dept: "sup", loc: "brn", reportsTo: "marketa" }, job: J({ start: "2026-10-01", contract: "fixed", wt: "full" }) }),
+        person({ id: "karel", name: "Karel Dvořák", email: "karel.dvorak@email.cz", account: "deleted", start: "2018-04-01", groups: ["support"],
+          card: { title: "Warehouse operator", dept: "ops", loc: "brn", reportsTo: "martin" }, work: { email: "", phone: "+420 602 111 090" },
+          job: J({ number: "A-0003", start: "2018-04-01", leaving: "2026-10-20", contract: "permanent", wt: "full" }),
+          contact: { phone: "+420 604 555 444", email: "", ec: [{ name: "Jana Dvořáková", phone: "+420 604 555 445" }, { name: "", phone: "" }] } }),
+        person({ id: "petra", name: "Petra Veselá", email: "petra.vesela@email.cz", account: "none", start: "2026-09-15",
+          card: { title: "Warehouse operator", dept: "ops", loc: "brn", reportsTo: "martin" }, job: J({ number: "A-0052", start: "2026-09-15", probation: "2026-12-15", contract: "fixed", wt: "full" }) }),
+        person({ id: "jonas", name: "Jonas Weber", email: "jonas@weber-design.de", type: "external", start: "2025-11-01", groups: ["eng"], photo: 210,
+          card: { title: "Freelance product designer", dept: "eng", loc: "ber", reportsTo: "tomas" }, work: { email: "jonas@weber-design.de", phone: "+49 151 2345 6789" },
+          job: J({ start: "2025-11-01" }), contact: { phone: "+49 151 2345 6789", email: "", ec: [{ name: "", phone: "" }, { name: "", phone: "" }] } }),
+        person({ id: "anna", name: "Anna Schmidt", email: "anna.schmidt@acme.de", start: "2025-02-01", photo: 120,
+          card: { title: "Account executive", dept: "sal", loc: "ber", reportsTo: "richard" }, work: { email: "anna.schmidt@acme.de", phone: "+49 30 1234 5670" },
+          job: J({ number: "B-0002", start: "2025-02-01", contract: "permanent", wt: "full" }) }),
+        // former
+        person({ id: "ondrej", name: "Ondřej Malý", email: "ondrej.maly@gmail.com", start: "2022-06-01", ended: "2026-09-30", photo: 170,
+          card: { title: "QA engineer", dept: "eng", loc: "prg", reportsTo: "" }, work: { email: "ondrej.maly@acme.cz", phone: "+420 602 111 070" },
+          job: J({ number: "A-0025", start: "2022-06-01", leaving: "2026-09-30", contract: "permanent", wt: "full" }),
+          contact: { phone: "+420 720 999 888", email: "ondra.maly@gmail.com", ec: [{ name: "Lenka Malá", phone: "+420 720 999 887" }, { name: "", phone: "" }] },
+          personal: { a1: "Lidická 12", a2: "", postal: "602 00", city: "Brno", region: "Jihomoravský kraj", country: "CZ", dob: "1990-02-11" } }),
+        person({ id: "veronika", name: "Veronika Pokorná", email: "veronika.p@email.cz", start: "2021-09-01", ended: "2026-06-15", photo: 0,
+          removed: { workContact: "2026-07-15", contact: "2026-07-15" },
+          card: { title: "Marketing specialist", dept: "mkt", loc: "prg", reportsTo: "" }, work: { email: "", phone: "" },
+          job: J({ number: "A-0021", start: "2021-09-01", leaving: "2026-06-15", contract: "permanent", wt: "full" }),
+          personal: { a1: "Korunní 5", a2: "", postal: "120 00", city: "Praha 2", region: "", country: "CZ", dob: "1988-12-01" } }),
+        person({ id: "filip", name: "Filip Beneš", email: "filip.benes@email.cz", account: "deleted", start: "2017-03-01", ended: "2025-12-31",
+          hold: { by: "Martin Svoboda", at: "2026-02-03" },
+          card: { title: "Accountant", dept: "fin", loc: "prg", reportsTo: "" }, work: { email: "filip.benes@acme.cz", phone: "+420 602 111 080" },
+          job: J({ number: "A-0002", start: "2017-03-01", contract: "permanent", wt: "full" }),
+          contact: { phone: "+420 603 444 333", email: "", ec: [{ name: "", phone: "" }, { name: "", phone: "" }] },
+          personal: { a1: "Masarykova 8", a2: "", postal: "301 00", city: "Plzeň", region: "Plzeňský kraj", country: "CZ", dob: "1979-05-30" } }),
+        person({ id: "hana0", name: "Hana Marková", email: "hana.markova@email.cz", start: "2025-04-01", ended: "2026-03-31", photo: 60, rejoinedAs: "hana",
+          removed: { workContact: "2026-04-30", contact: "2026-04-30" },
+          card: { title: "Seasonal support agent", dept: "sup", loc: "brn", reportsTo: "" },
+          job: J({ number: "A-0047", start: "2025-04-01", contract: "fixed", wt: "full" }),
+          personal: { a1: "Cejl 40", a2: "byt 12", postal: "602 00", city: "Brno", region: "Jihomoravský kraj", country: "CZ", dob: "2001-09-09" } }),
+      ];
+      const P = {};
+      PEOPLE.forEach((p) => (P[p.id] = p));
+      const VIEWERS = { self: "eva", colleague: "jakub", external: "jonas", groupAdmin: "marketa", hr: "lucie", leadership: "tomas", orgAdmin: "martin", owner: "richard" };
+
+      // ---------- state ----------
+      const S = {
+        route: "/directory", role: "orgAdmin", plan: "ent", lang: "en", pv: "A", dv: "A", ann: true,
+        enabled: true, agreement: { v: 1, by: "Richard Kolář", at: "2026-09-02" }, agreementV2: false,
+        f: { q: "", dept: "", loc: "", type: "" }, ptab: "overview", dialog: null, toast: null, exports: {}, orgExport: null,
+        perms: {
+          card: { owner: "write", self: "read", colleague: "read", external: "read", groupAdmin: "read", hr: "write", leadership: "read", orgAdmin: "write" },
+          photo: { owner: "write", self: "write", colleague: "read", external: "read", groupAdmin: "read", hr: "write", leadership: "read", orgAdmin: "write" },
+          workContact: { owner: "write", self: "read", colleague: "read", external: "none", groupAdmin: "read", hr: "write", leadership: "read", orgAdmin: "write" },
+          job: { owner: "write", self: "read", colleague: "none", external: "none", groupAdmin: "read", hr: "write", leadership: "read", orgAdmin: "write" },
+          contact: { owner: "write", self: "write", colleague: "none", external: "none", groupAdmin: "none", hr: "write", leadership: "none", orgAdmin: "write" },
+          personal: { owner: "write", self: "write", colleague: "none", external: "none", groupAdmin: "none", hr: "write", leadership: "none", orgAdmin: "write" },
+        },
+        acts: {
+          create: { owner: "allowed", groupAdmin: "no", hr: "allowed", leadership: "no", orgAdmin: "allowed" },
+          invite: { owner: "allowed", groupAdmin: "no", hr: "allowed", leadership: "no", orgAdmin: "allowed" },
+          changeType: { owner: "allowed", groupAdmin: "no", hr: "allowed", leadership: "no", orgAdmin: "allowed" },
+          end: { owner: "allowed", hr: "allowed", leadership: "no", orgAdmin: "allowed" },
+          manageLists: { owner: "allowed", groupAdmin: "no", hr: "allowed", leadership: "no", orgAdmin: "allowed" },
+        },
+        ret: { card: "forever", job: "forever", workContact: "30d", contact: "30d", personal: "3y", photo: "1y" },
+        notice: {
+          en: "Before you add someone here, tell them this: {org} keeps their name and phone number so it can reach them in an emergency involving you. {org} deletes both {period} after you leave. Questions about it go to {org}'s HR.",
+          cs: "Než sem někoho zapíšete, řekněte mu: {org} uchovává jeho jméno a telefonní číslo, aby ho mohla kontaktovat v nouzi, která se vás týká. {org} je smaže {period} po vašem odchodu. S dotazy se obracejte na HR {org}.",
+        },
+        permHistory: [
+          { at: "2026-09-02 10:14", by: "Richard Kolář", text: "Table copied from the product default (directory turned on)" },
+          { at: "2026-09-04 09:30", by: "Richard Kolář", text: "Assigned HR to Lucie Králová" },
+          { at: "2026-09-04 09:31", by: "Richard Kolář", text: "Assigned Leadership to Tomáš Novák" },
+          { at: "2026-09-18 16:02", by: "Richard Kolář", text: "Job · Group admin: none → read" },
+        ],
+        profileHistory: {
+          eva: [
+            { at: "2026-10-01 11:20", by: "Martin Svoboda", via: "Org admin", sec: "Card", fields: "Reports to" },
+            { at: "2026-09-05 14:02", by: "Lucie Králová", via: "HR", sec: "Job", fields: "Employee number, Probation end date, Working time" },
+            { at: "2026-09-03 08:47", by: "Eva Horáková", via: "Self", sec: "Contact", fields: "Private phone, Emergency contact 1" },
+          ],
+          veronika: [
+            { at: "2026-07-15 02:00", by: "retention", via: "", sec: "Contact", fields: "all fields" },
+            { at: "2026-07-15 02:00", by: "retention", via: "", sec: "Work contact", fields: "all fields" },
+          ],
+        },
+        readLog: [
+          { at: "2026-10-24 14:02", reader: "Lucie Králová", person: "Eva Horáková", secs: "Contact, Personal", aud: "HR", kind: "read" },
+          { at: "2026-10-23 09:15", reader: "Martin Svoboda", person: "Ondřej Malý", secs: "Contact, Personal", aud: "Org admin", kind: "read" },
+          { at: "2026-10-20 17:40", reader: "Richard Kolář", person: "Filip Beneš", secs: "all held sections, 1 spell", aud: "Owner", kind: "export" },
+          { at: "2026-10-12 10:05", reader: "Lucie Králová", person: "Karel Dvořák", secs: "Contact", aud: "HR", kind: "read" },
+        ],
+      };
+
+      // ---------- permission logic ----------
+      const viewer = () => P[VIEWERS[S.role]];
+      const isAdmin = (v) => v.owner || v.orgAdmin;
+      const reaches = (v, r) => v.manages.length > 0 && !r.ended && r.id !== v.id && r.groups.some((g) => v.manages.includes(g));
+      function auds(v, r) {
+        const a = new Set();
+        if (r.ended) {
+          if (v.owner) a.add("owner");
+          if (v.orgAdmin) a.add("orgAdmin");
+          if (v.roles.includes("hr")) a.add("hr");
+          return a;
+        }
+        if (v.id === r.id) a.add("self");
+        if (v.owner) a.add("owner");
+        a.add(v.type === "external" ? "external" : "colleague");
+        if (reaches(v, r)) a.add("groupAdmin");
+        if (v.roles.includes("hr")) a.add("hr");
+        if (v.roles.includes("leadership")) a.add("leadership");
+        if (v.orgAdmin) a.add("orgAdmin");
+        return a;
+      }
+      function orgAuds(v) {
+        const a = new Set();
+        if (v.owner) a.add("owner");
+        if (v.manages.length) a.add("groupAdmin");
+        if (v.roles.includes("hr")) a.add("hr");
+        if (v.roles.includes("leadership")) a.add("leadership");
+        if (v.orgAdmin) a.add("orgAdmin");
+        return a;
+      }
+      function level(v, r, s) {
+        if (s === "personal" && r.type === "external") return "na";
+        let best = 0;
+        for (const a of auds(v, r)) {
+          const val = S.perms[s][a];
+          if (val && ORD[val] > best) best = ORD[val];
+        }
+        return ["none", "read", "write"][best];
+      }
+      function grantedBy(v, r, s) {
+        const want = level(v, r, s);
+        for (const a of ["self", "owner", "orgAdmin", "hr", "leadership", "groupAdmin", "colleague", "external"])
+          if (auds(v, r).has(a) && S.perms[s][a] === want) return a;
+        return null;
+      }
+      const lapsed = () => S.plan !== "ent";
+      const mode = (v, r, s) => { const l = level(v, r, s); return l === "write" && lapsed() ? "clear" : l; };
+      function canAct(act, v, r) {
+        const row = S.acts[act];
+        for (const a of r ? auds(v, r) : orgAuds(v)) if (row[a] === "allowed") return true;
+        return false;
+      }
+      const seesFormer = (v) => v.owner || v.orgAdmin || v.roles.includes("hr");
+      const readsTable = (v) => v.owner || v.orgAdmin || v.roles.includes("hr");
+      const adminMarkers = (v) => v.owner || v.orgAdmin || v.roles.includes("hr");
+      const openPeople = () => PEOPLE.filter((p) => !p.ended && !p.erased);
+      const formerPeople = () => PEOPLE.filter((p) => p.ended && !p.erased).sort((a, b) => (a.ended < b.ended ? 1 : -1));
+      const deptName = (id) => { const d = DEPTS.find((x) => x.id === id); return d ? d.name + (d.archived ? " (archived)" : "") : ""; };
+      const locName = (id) => { const d = LOCS.find((x) => x.id === id); return d ? d.name : ""; };
+      const initials = (n) => n.split(" ").map((x) => x[0]).slice(0, 2).join("");
+      const cName = (code) => { const c = COUNTRIES.find((x) => x[0] === code); return c ? (S.lang === "cs" ? c[2] : c[1]) : ""; };
+      const periodWord = (p) => t("per_" + p).toLowerCase();
+
+      function removalInfo(r, s) {
+        if (!r.ended) return null;
+        if (r.removed[s]) return { k: "gone", text: t("removedOn", { d: fd(r.removed[s]) }) };
+        if (r.hold) return { k: "hold", text: t("heldNo") };
+        const p = S.ret[s];
+        if (p === "forever") return { k: "keep", text: t("keep") };
+        const due = addP(r.ended, p);
+        if (due <= TODAY) return { k: "due", text: t("dueTonight") };
+        return { k: "due", text: t("dueOn", { d: fd(due) }), due };
+      }
+
+      // ---------- avatar ----------
+      function avatar(r, v, size) {
+        const ph = level(v, r, "photo");
+        let kind = "init";
+        if (r.photo != null && ph !== "none") kind = "photo";
+        else if (r.account === "bound" && r.acct != null) kind = "acct";
+        const st = `width:${size}px;height:${size}px;font-size:${Math.round(size * 0.38)}px;`;
+        const tag = S.ann ? `<i class="src">${kind === "photo" ? "PHOTO" : kind === "acct" ? "ACCT" : "INIT"}</i>` : "";
+        if (kind === "photo")
+          return `<span class="av" title="Profile photo" style="${st}background:linear-gradient(160deg, oklch(0.8 0.09 ${r.photo}), oklch(0.5 0.12 ${r.photo + 40}))">${SIL(0.78)}${tag}</span>`;
+        if (kind === "acct")
+          return `<span class="av" title="Account picture" style="${st}background:oklch(0.62 0.13 ${r.acct})">${SIL(0.45)}${tag}</span>`;
+        return `<span class="av" title="Initials" style="${st}background:var(--primary-soft);color:var(--primary-strong)">${initials(r.name)}${tag}</span>`;
+      }
+      function avatarKind(r, v) {
+        if (r.photo != null && level(v, r, "photo") !== "none") return "Profile photo";
+        if (r.account === "bound" && r.acct != null) return "Account picture (no Profile photo you can see)";
+        return "Initials (no Profile photo or Account picture)";
+      }
+
+      // ---------- routing ----------
+      function parseHash() {
+        const h = location.hash.slice(1) || "/directory";
+        const [path, q] = h.split("?");
+        S.route = path || "/directory";
+        const params = new URLSearchParams(q || "");
+        for (const k of ["role", "plan", "lang", "pv", "dv"]) if (params.get(k)) S[k] = params.get(k);
+        if (params.get("ann")) S.ann = params.get("ann") === "1";
+        if (params.get("ptab")) S.ptab = params.get("ptab");
+      }
+      function hashFor(path) {
+        const q = new URLSearchParams({ role: S.role, plan: S.plan, lang: S.lang, pv: S.pv, dv: S.dv, ann: S.ann ? "1" : "0" });
+        return "#" + path + "?" + q.toString();
+      }
+      const sync = () => history.replaceState(null, "", hashFor(S.route));
+
+      // ---------- actions ----------
+      let toastTimer;
+      const A = {
+        go(path) {
+          const [p, anchor] = path.split("#");
+          S.route = p; S.dialog = null;
+          history.pushState(null, "", hashFor(p));
+          logReadIfNeeded();
+          render(); window.scrollTo(0, 0);
+          if (anchor) { const el = document.getElementById(anchor); if (el) el.scrollIntoView(); }
+        },
+        set(k, v) {
+          S[k] = v; S.dialog = null;
+          if (k === "plan" && v === "ent") S.agreementV2 = S.agreementV2;
+          sync(); logReadIfNeeded(); render();
+        },
+        filter(k, v) { S.f[k] = v; render(); },
+        open(kind, extra = {}) { S.dialog = { kind, ...extra }; render(); },
+        close() { S.dialog = null; render(); },
+        toast(msg) { S.toast = msg; render(); clearTimeout(toastTimer); toastTimer = setTimeout(() => { S.toast = null; render(); }, 2600); },
+        variant(dir) {
+          const k = pageVariantKey(); if (!k) return;
+          const list = ["A", "B"]; const i = list.indexOf(S[k]);
+          S[k] = list[(i + dir + list.length) % list.length]; sync(); render();
+        },
+        setPerm(row, aud, val) {
+          const before = (S.perms[row] || S.acts[row])[aud];
+          (S.perms[row] || S.acts[row])[aud] = val;
+          S.permHistory.unshift({ at: TODAY + " " + nowTime(), by: viewer().name, text: `${t(SECTIONS.includes(row) ? "sec_" + row : "act_" + row)} · ${t("aud_" + aud)}: ${before} → ${val}` });
+          A.toast("Saved. Profiles follow the new cell at once.");
+        },
+        assignRole(role, id) {
+          if (!id) return;
+          P[id].roles.push(role);
+          S.permHistory.unshift({ at: TODAY + " " + nowTime(), by: viewer().name, text: `Assigned ${role === "hr" ? "HR" : "Leadership"} to ${P[id].name}` });
+          A.toast("Role assigned");
+        },
+        removeRole(role, id) {
+          P[id].roles = P[id].roles.filter((x) => x !== role);
+          S.permHistory.unshift({ at: TODAY + " " + nowTime(), by: viewer().name, text: `Removed ${role === "hr" ? "HR" : "Leadership"} from ${P[id].name}` });
+          A.toast("Role removed");
+        },
+        setRet(sec, val) {
+          const cur = S.ret[sec];
+          if (PERIODS.indexOf(val) < PERIODS.indexOf(cur)) { A.open("retention", { sec, val }); return; }
+          S.ret[sec] = val; A.toast("Retention saved. Lengthening brings nothing back.");
+        },
+        saveEdit(id) {
+          const r = P[id];
+          const touched = new Set();
+          document.querySelectorAll("[data-f]").forEach((el) => {
+            if (el.disabled) return;
+            const path = el.dataset.f.split(".");
+            let o = r; for (let i = 0; i < path.length - 1; i++) o = o[path[i]];
+            const last = path[path.length - 1];
+            let val = el.value;
+            if (el.dataset.phone) { const cc = document.querySelector(`[data-cc="${el.dataset.f}"]`).value; val = val.trim() ? (cc ? cc + " " : "") + val.trim() : ""; }
+            if (o[last] !== val) { o[last] = val; touched.add(el.closest("[data-sec]")?.dataset.sec); }
+          });
+          if (touched.size) {
+            const v = viewer();
+            const list = (S.profileHistory[id] = S.profileHistory[id] || []);
+            for (const s of touched) if (s && s !== "record") list.unshift({ at: TODAY + " " + nowTime(), by: v.name, via: t("aud_" + (grantedBy(v, r, s) || "self")), sec: t("sec_" + s), fields: "edited fields" });
+          }
+          A.go("/person/" + id);
+          A.toast(touched.size ? "Saved. Changes are live, no approval step." : "Nothing changed");
+        },
+        clearField(id, path) {
+          const r = P[id]; const p = path.split("."); let o = r;
+          for (let i = 0; i < p.length - 1; i++) o = o[p[i]];
+          o[p[p.length - 1]] = ""; A.toast("Cleared"); render();
+        },
+        useSignIn(id) { const el = document.querySelector('[data-f="work.email"]'); if (el) el.value = P[id].email; },
+        fakeUpload(id) { P[id].photo = 270; A.toast("Profile photo uploaded (fake)"); },
+        removePhoto(id) { P[id].photo = null; A.toast("Profile photo removed. Showing the next fallback."); },
+      };
+      const nowTime = () => { const d = new Date(); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); };
+      let lastLogged = "";
+      function logReadIfNeeded() {
+        const m = S.route.match(/^\/person\/([^/]+)/);
+        if (!m || !P[m[1]]) return;
+        const r = P[m[1]], v = viewer();
+        if (r.id === v.id) return;
+        const secs = ["contact", "personal"].filter((s) => { const l = level(v, r, s); return l === "read" || l === "write"; });
+        if (!secs.length) return;
+        const key = v.id + r.id + S.route;
+        if (key === lastLogged) return;
+        lastLogged = key;
+        S.readLog.unshift({ at: TODAY + " " + nowTime(), reader: v.name, person: r.name, secs: secs.map((s) => t("sec_" + s)).join(", "), aud: t("aud_" + grantedBy(v, r, secs[0])), kind: "read" });
+      }
+
+      // ---------- shell ----------
+      function shell(content) {
+        const v = viewer();
+        const showDir = S.plan === "none" ? isAdmin(v) : S.enabled;
+        const adm = isAdmin(v) || v.manages.length;
+        const nav = (path, label, icon, extra = "", match) => {
+          const on = match ? S.route.startsWith(match) : S.route === path;
+          return `<div class="nav ${on ? "on" : ""} ${path ? "" : "dead"}" ${path ? `onclick="A.go('${path}')"` : ""}>${icon}<span>${label}</span>${extra}</div>`;
+        };
+        const dirChip = S.plan === "none" ? `<span class="chip warm tagx">${t("availEnt")}</span>` : `<span class="chip p tagx">new</span>`;
+        return `<div class="shell">
+          <aside class="side">
+            <div class="logo"><i></i>flexi day</div>
+            <div class="navsec">${t("timeOff")}</div>
+            ${nav("", t("dashboard"), I.grid)}${nav("", t("requests"), I.cal)}${nav("", t("report"), I.chart)}${nav("", t("groups"), I.users)}${nav("", t("calendarSync"), I.sync)}
+            <div class="navsec">${t("attendance")}</div>
+            ${nav("", t("myAttendance"), I.timer)}
+            ${showDir ? `<div class="navsec">${t("peopleSec")}</div>${nav("/directory", t("directory"), I.book, dirChip, "/directory")}` : ""}
+            ${adm ? `<div class="navsec">${t("orgSec")}</div>${nav("/organization", t("organization"), I.building)}${nav("", t("billing"), I.pay)}` : ""}
+            <div class="side-foot">
+              ${nav("", t("settings"), I.gear)}
+              <div class="me">${avatar(v, v, 32)}<div><div style="font-weight:600;font-size:13.5px">${v.name}</div><div class="small muted">${v.email}</div></div></div>
+            </div>
+          </aside>
+          <main class="main">
+            <div class="top">
+              <div class="crumb">${crumb()}</div>
+              <div class="grow"></div>
+              <a class="small" onclick="A.go('/person/${v.id}')">My profile</a>
+              <div class="lang"><button class="${S.lang === "en" ? "on" : ""}" onclick="A.set('lang','en')">EN</button><button class="${S.lang === "cs" ? "on" : ""}" onclick="A.set('lang','cs')">CS</button></div>
+              ${avatar(v, v, 30)}
+            </div>
+            <div class="content">${content}</div>
+          </main>
+        </div>`;
+      }
+      function crumb() {
+        if (S.route.startsWith("/organization")) return `<span>${t("orgSec")} /</span> ${t("organization")}`;
+        if (S.route.startsWith("/person")) { const r = P[S.route.split("/")[2]]; return `<span>${t("peopleSec")} / ${t("directory")} /</span> ${r ? r.name : ""}`; }
+        return `<span>${t("peopleSec")} /</span> ${t("directory")}`;
+      }
+      const ann = (text) => (S.ann ? `<div class="ann">${text}</div>` : "");
+
+      // ---------- gates ----------
+      function dirGate() {
+        const v = viewer();
+        if (S.plan === "none") {
+          if (isAdmin(v)) return upsell();
+          return `<div class="card"><h2>No Directory entry</h2><p class="muted">On Free and Pro, members see nothing of the directory. This page is unreachable for ${v.name}.</p></div>${ann("Switch the viewer to Owner or Org admin to see the upsell.")}`;
+        }
+        if (!S.enabled) {
+          return `<div class="card"><h2>The directory is off</h2><p class="muted">Its pages are hidden and its data is kept. ${v.owner ? `Turn it on in <a onclick="A.go('/organization')">Organization</a>.` : "Only the owner can turn it on."}</p></div>`;
+        }
+        return null;
+      }
+      function upsell() {
+        return `<div class="card" style="max-width:760px;padding:32px">
+          <span class="chip warm">${t("availEnt")}</span>
+          <h1 style="margin:12px 0 6px">${t("directory")}</h1>
+          <p class="muted" style="font-size:15px">Keep a profile for everyone your organization works with, including people without a Flexi Day account and external workers. You decide who sees which part of it.</p>
+          <ul style="line-height:1.9;margin:14px 0 20px;padding-left:18px">
+            <li>A directory of cards with job title, department, location and who they report to</li>
+            <li>Job, contact and personal details, encrypted where they are sensitive</li>
+            <li>A permission table you set per section and per audience</li>
+            <li>Retention periods, exports and a read log for privacy requests</li>
+          </ul>
+          <div class="row"><button class="btn" onclick="A.toast('Opens Billing with the Enterprise card')">${t("seePlans")}</button><span class="small muted">People directory and employee profiles are on the Enterprise plan.</span></div>
+        </div>
+        ${ann("Free and Pro org admins (owner included) see this. Members see no nav entry. If the organization still holds profile data from an earlier Enterprise period, the entry opens that data instead (switch Plan to 'Pro, lapsed').")}`;
+      }
+      function lapseBanner() {
+        if (!lapsed() || S.plan === "none") return "";
+        const v = viewer();
+        return `<div class="banner">${I.lock}<div><b>Your organization is on Pro.</b> The directory stays readable. You can export, clear and delete, but adding people or new values needs Enterprise.</div>${isAdmin(v) ? `<button class="btn sm out" onclick="A.toast('Opens Billing')">${t("seePlans")}</button>` : ""}</div>`;
+      }
+
+      // ---------- directory pages ----------
+      function dirHeader(tab) {
+        const v = viewer();
+        const settingsTab = readsTable(v) || canAct("manageLists", v);
+        const canCreate = canAct("create", v);
+        return `<div class="row" style="align-items:flex-end">
+            <div class="grow"><h1>${t("dirTitle")}</h1><p class="muted" style="margin:4px 0 0">${t("dirSub")}</p></div>
+            ${canCreate ? `<button class="btn ${lapsed() ? "disabled" : ""}" ${lapsed() ? `title="Adding people needs Enterprise" onclick="A.toast('Adding people needs Enterprise')"` : `onclick="A.open('add')"`}>${I.plus} ${t("addPerson")}</button>` : ""}
+          </div>
+          <div class="tabs">
+            <div class="tab ${tab === "people" ? "on" : ""}" onclick="A.go('/directory')">${t("tabPeople")} <span class="n">${visibleOpen().length}</span></div>
+            ${seesFormer(v) ? `<div class="tab ${tab === "former" ? "on" : ""}" onclick="A.go('/directory/former')">${t("tabFormer")} <span class="n">${formerPeople().length}</span></div>` : ""}
+            ${settingsTab ? `<div class="tab ${tab === "settings" ? "on" : ""}" onclick="A.go('/directory/settings/${readsTable(v) ? "permissions" : "lists"}')">${I.gear} ${t("tabSettings")}</div>` : ""}
+          </div>
+          ${S.agreementV2 && v.owner ? `<div class="banner rev">${I.book}<div><b>Version 2 of the directory agreement is ready.</b> Nothing is paused while you read it.</div><button class="btn sm" onclick="A.open('agreement',{v:2})">Review</button></div>` : ""}
+          ${lapseBanner()}`;
+      }
+      const visibleOpen = () => openPeople().filter((r) => level(viewer(), r, "card") !== "none");
+      function filtered() {
+        const f = S.f;
+        return visibleOpen()
+          .filter((r) => !f.q || (r.name + " " + r.card.title).toLowerCase().includes(f.q.toLowerCase()))
+          .filter((r) => !f.dept || r.card.dept === f.dept)
+          .filter((r) => !f.loc || r.card.loc === f.loc)
+          .filter((r) => !f.type || r.type === f.type)
+          .sort((a, b) => a.name.localeCompare(b.name));
+      }
+      function statusChips(r, v) {
+        const out = [];
+        if (r.id === v.id) out.push(`<span class="chip p">${t("you")}</span>`);
+        if (r.type === "external") out.push(`<span class="chip rev">${t("external")}</span>`);
+        if (adminMarkers(v)) {
+          if (r.account === "none") out.push(`<span class="chip line">${r.invite ? t("inviteSent") : t("noAccount")}</span>`);
+          if (r.account === "deleted") out.push(`<span class="chip danger">${t("accountDeleted")}</span>`);
+        }
+        if (reaches(v, r)) out.push(`<span class="chip ok">${t("yourGroup")}</span>`);
+        return out.join(" ");
+      }
+      function pageDirectory() {
+        const g = dirGate(); if (g) return g;
+        const v = viewer();
+        const list = filtered();
+        const usedDepts = DEPTS.filter((d) => openPeople().some((p) => p.card.dept === d.id));
+        const usedLocs = LOCS.filter((d) => openPeople().some((p) => p.card.loc === d.id));
+        const filters = `<div class="filters">
+            <input type="search" id="q" placeholder="${t("search")}" value="${S.f.q}" oninput="A.filter('q',this.value)">
+            <select onchange="A.filter('dept',this.value)"><option value="">${t("allDepts")}</option>${usedDepts.map((d) => `<option value="${d.id}" ${S.f.dept === d.id ? "selected" : ""}>${d.name}</option>`).join("")}</select>
+            <select onchange="A.filter('loc',this.value)"><option value="">${t("allLocs")}</option>${usedLocs.map((d) => `<option value="${d.id}" ${S.f.loc === d.id ? "selected" : ""}>${d.name}</option>`).join("")}</select>
+            <select onchange="A.filter('type',this.value)"><option value="">${t("allTypes")}</option><option value="employee" ${S.f.type === "employee" ? "selected" : ""}>${t("onlyEmp")}</option><option value="external" ${S.f.type === "external" ? "selected" : ""}>${t("onlyExt")}</option></select>
+          </div>`;
+        let body;
+        if (S.dv === "A") {
+          body = `<div class="pgrid">${list.map((r) => {
+            const wc = level(v, r, "workContact") !== "none";
+            const rt = r.card.reportsTo && P[r.card.reportsTo];
+            return `<div class="pcard" onclick="A.go('/person/${r.id}')">
+              <div class="row" style="align-items:flex-start;gap:12px">${avatar(r, v, 52)}
+                <div style="min-width:0"><div class="pname">${r.name}</div><div class="pmeta">${r.card.title}</div><div class="pmeta">${deptName(r.card.dept)} · ${locName(r.card.loc)}</div>${rt ? `<div class="pmeta">${t("f_reportsTo")}: ${rt.name}</div>` : ""}</div></div>
+              <div class="row wrap" style="gap:4px">${statusChips(r, v)}</div>
+              ${wc ? `<div class="pcontact">${r.work.email ? `<span>${I.mail}${r.work.email}</span>` : ""}${r.work.phone ? `<span>${I.phone}${r.work.phone}</span>` : ""}${!r.work.email && !r.work.phone ? `<span class="faint">No work contact</span>` : ""}</div>` : ""}
+            </div>`;
+          }).join("")}</div>`;
+        } else {
+          const wcAny = list.some((r) => level(v, r, "workContact") !== "none");
+          body = `<div class="card" style="padding:6px 10px"><table class="t"><thead><tr><th>${t("f_name")}</th><th>${t("f_title")}</th><th>${t("f_dept")}</th><th>${t("f_loc")}</th><th>${t("f_reportsTo")}</th>${wcAny ? `<th>${t("f_workEmail")}</th><th>${t("f_workPhone")}</th>` : ""}<th></th></tr></thead><tbody>
+          ${list.map((r) => { const wc = level(v, r, "workContact") !== "none"; const rt = r.card.reportsTo && P[r.card.reportsTo];
+            return `<tr class="click" onclick="A.go('/person/${r.id}')"><td><div class="row">${avatar(r, v, 30)}<b>${r.name}</b></div></td><td>${r.card.title}</td><td>${deptName(r.card.dept)}</td><td>${locName(r.card.loc)}</td><td>${rt ? rt.name : ""}</td>${wcAny ? `<td>${wc ? r.work.email : '<span class="faint">hidden</span>'}</td><td>${wc ? r.work.phone : '<span class="faint">hidden</span>'}</td>` : ""}<td><div class="row" style="gap:4px;justify-content:flex-end">${statusChips(r, v)}</div></td></tr>`; }).join("")}
+          </tbody></table></div>`;
+        }
+        return dirHeader("people") + filters + (list.length ? body : `<p class="muted">Nobody matches.</p>`) +
+          ann(`Viewer: ${v.name} as <b>${t("aud_" + S.role)}</b>. Cards follow the Card, Photo and Work contact read cells. Search covers name and job title only, since Contact and Personal are encrypted. The account-less and "account deleted" markers show only to Owner, Org admin and HR. No leave or attendance status anywhere.`);
+      }
+      function pageFormer() {
+        const g = dirGate(); if (g) return g;
+        const v = viewer();
+        if (!seesFormer(v)) return dirHeader("former") + `<div class="card">The Former list is for the owner, org admins and HR.</div>`;
+        const rows = formerPeople();
+        return dirHeader("former") + `<div class="card" style="padding:6px 10px"><table class="t"><thead><tr><th>${t("f_name")}</th><th>${t("f_title")}</th><th>${t("f_dept")}</th><th>Ended</th><th>Next removal</th><th></th></tr></thead><tbody>
+          ${rows.map((r) => {
+            const next = SECTIONS.map((s) => ({ s, i: removalInfo(r, s) })).filter((x) => x.i && x.i.due).sort((a, b) => (a.i.due < b.i.due ? -1 : 1))[0];
+            return `<tr class="click" onclick="A.go('/person/${r.id}')"><td><div class="row">${avatar(r, v, 30)}<b>${r.name}</b></div></td><td>${r.card.title}</td><td>${deptName(r.card.dept)}</td><td>${fd(r.ended)}</td>
+              <td>${r.hold ? `<span class="chip rev">${I.pause} ${t("hold")}</span>` : next ? `<span class="small">${t("sec_" + next.s)} · ${fd(next.i.due)}</span>` : `<span class="faint small">nothing scheduled</span>`}</td>
+              <td><div class="row" style="gap:4px;justify-content:flex-end">${r.account === "deleted" ? `<span class="chip danger">${t("accountDeleted")}</span>` : ""}${r.type === "external" ? `<span class="chip rev">${t("external")}</span>` : ""}${r.rejoinedAs ? `<span class="chip ok">${t("rejoined")} ${fd(P[r.rejoinedAs].start)}</span>` : ""}</div></td></tr>`;
+          }).join("")}
+        </tbody></table></div>` + ann("Sorted by end date. One row per spell, so Hana's earlier spell shows here while her new one is open. Former records stay editable for corrections.");
+      }
+
+      // ---------- profile ----------
+      function fieldRows(r, s, v) {
+        const row = (k, val) => `<dt>${t(k)}</dt><dd>${val || '<span class="faint">—</span>'}</dd>`;
+        const ext = r.type === "external";
+        if (s === "card") {
+          const rt = r.card.reportsTo && P[r.card.reportsTo];
+          return row("f_title", r.card.title) + row("f_dept", deptName(r.card.dept)) + row("f_loc", locName(r.card.loc)) + row("f_reportsTo", rt ? `<a onclick="A.go('/person/${rt.id}')">${rt.name}</a>` : "");
+        }
+        if (s === "workContact") return row("f_workEmail", r.work.email) + row("f_workPhone", r.work.phone);
+        if (s === "job") {
+          const j = r.job;
+          return (j.legal ? row("f_legal", j.legal) : "") + row("f_number", j.number) + row("f_start", fd(j.start)) + (ext ? "" : row("f_probation", fd(j.probation))) + row("f_leaving", fd(j.leaving)) +
+            (ext ? "" : row("f_contract", j.contract ? t("ct_" + (j.contract === "fixed" ? "fixed" : j.contract)) : "") + row("f_wt", j.wt ? t("wt_" + j.wt) : ""));
+        }
+        if (s === "contact") {
+          const c = r.contact;
+          const ec = (i) => (c.ec[i].name ? `${c.ec[i].name} · ${c.ec[i].phone}` : "");
+          return row("f_pphone", c.phone) + row("f_pemail", c.email) + `<dt>${t("f_ec")} 1</dt><dd>${ec(0) || '<span class="faint">—</span>'}</dd><dt>${t("f_ec")} 2</dt><dd>${ec(1) || '<span class="faint">—</span>'}</dd>`;
+        }
+        if (s === "personal") {
+          const p = r.personal;
+          const addr = p.a1 ? [p.a1, p.a2, `${p.postal} ${p.city}`, p.region, cName(p.country)].filter(Boolean).join(", ") : "";
+          return row("f_address", addr) + row("f_dob", fd(p.dob));
+        }
+        return "";
+      }
+      function lvlChip(m) {
+        return m === "write" ? `<span class="chip ok">${t("editable")}</span>` : m === "clear" ? `<span class="chip warm">${t("clearOnly")}</span>` : `<span class="chip">${t("readOnly")}</span>`;
+      }
+      function sectionCard(r, s, v) {
+        const l = level(v, r, s), m = mode(v, r, s);
+        if (l === "na") return S.ann ? `<div class="hiddenph"><b>${t("sec_personal")}</b> is not kept for external workers, so the section does not render at all.</div>` : "";
+        if (l === "none") return S.ann ? `<div class="hiddenph"><b>${t("sec_" + s)}</b> · ${t("hidden")} for ${v.name} (${[...auds(v, r)].map((a) => t("aud_" + a)).join(" + ")}). In the product this section is simply absent.</div>` : "";
+        const rem = removalInfo(r, s);
+        const gone = r.removed[s];
+        const sensitive = s === "contact" || s === "personal";
+        const editBtn = m !== "read" && !gone ? `<button class="btn xs out" onclick="A.go('/person/${r.id}/edit#${s}')">${I.pen} ${m === "clear" ? t("clearOnly") : t("edit")}</button>` : "";
+        let body;
+        if (gone) body = `<p class="muted small" style="margin:0">The fields of this section were emptied. The rest of the record stays.</p>`;
+        else if (s === "photo") {
+          const k = avatarKind(r, v);
+          body = `<div class="row" style="gap:14px">${avatar(r, v, 64)}<div><div style="font-weight:600">${r.photo != null ? "Profile photo, uploaded" : "No Profile photo"}</div><div class="small muted">Showing: ${k}</div>
+            ${m === "write" ? `<div class="row" style="margin-top:8px"><button class="btn xs out" onclick="A.fakeUpload('${r.id}')">${I.cam} Upload</button>${r.photo != null ? `<button class="btn xs ghost" onclick="A.removePhoto('${r.id}')">Remove</button>` : ""}</div>` : ""}
+            ${m === "clear" && r.photo != null ? `<div class="row" style="margin-top:8px"><button class="btn xs ghost" onclick="A.removePhoto('${r.id}')">Remove</button></div>` : ""}</div></div>`;
+        } else body = `<dl class="fl">${fieldRows(r, s, v)}</dl>`;
+        return `<div class="card" id="sec-${s}">
+          <div class="sec-h"><h2>${t("sec_" + s)}</h2>${sensitive ? `<span class="faint" title="${t("sensitiveNote")}">${I.lock}</span>` : ""}${lvlChip(m)}<div class="grow"></div>${s !== "photo" ? editBtn : ""}</div>
+          ${sensitive && r.id !== v.id ? `<div class="sec-note">${I.eye} Your view of this section is recorded in the read log.</div>` : ""}
+          ${rem ? `<div class="removal ${rem.k}">${rem.k === "hold" ? I.pause : I.hist} ${rem.text}</div>` : ""}
+          ${body}
+          ${S.ann ? `<div class="ann">level=${l}${m === "clear" ? " (lapsed: clear only)" : ""} · granted by ${t("aud_" + (grantedBy(v, r, s) || "colleague"))}</div>` : ""}
+        </div>`;
+      }
+      function recordFacts(r, v) {
+        const see = adminMarkers(v) || r.id === v.id;
+        const acc = r.account === "bound" ? `Bound${see ? ` · ${r.email}` : ""}` : r.account === "none" ? `${t("noAccount")}${r.invite ? ` · ${t("inviteSent")}` : ""}${see && r.email ? ` · ${r.email}` : ""}` : `<span style="color:var(--danger)">${t("accountDeleted")}</span> · frozen copy`;
+        const facts = [
+          ["Type", r.type === "external" ? t("external") : "Employee"],
+          [level(v, r, "job") === "none" ? "" : "Spell", r.ended ? `${fd(r.start)} to ${fd(r.ended)}` : `since ${fd(r.start)}`],
+        ];
+        if (adminMarkers(v) || r.id === v.id) facts.push(["Account", r.account === "deleted" && !adminMarkers(v) ? "" : acc]);
+        if (r.roles.length) facts.push(["Directory roles", r.roles.map((x) => `<span class="chip p">${x === "hr" ? "HR" : "Leadership"}</span>`).join(" ")]);
+        if (r.prevSpell && adminMarkers(v)) facts.push(["Earlier spell", `<a onclick="A.go('/person/${r.prevSpell}')">${fd(P[r.prevSpell].start)} to ${fd(P[r.prevSpell].ended)}</a>`]);
+        if (r.rejoinedAs) facts.push(["Rejoined", `<a onclick="A.go('/person/${r.rejoinedAs}')">open spell since ${fd(P[r.rejoinedAs].start)}</a>`]);
+        if (r.hold) facts.push(["Retention hold", `set by ${r.hold.by} on ${fd(r.hold.at)}`]);
+        return `<dl class="fl" style="grid-template-columns:110px 1fr">${facts.filter((f) => f[1]).map((f) => `<dt>${f[0]}</dt><dd>${f[1]}</dd>`).join("")}</dl>`;
+      }
+      function actionList(r, v, inline) {
+        const items = [];
+        const act = (icon, label, onclick, opts = {}) =>
+          items.push(inline
+            ? `<button class="btn sm ${opts.danger ? "danger" : "out"} ${opts.dis ? "disabled" : ""}" title="${opts.why || ""}" onclick="${opts.dis ? `A.toast('${opts.why}')` : onclick}">${icon}${label}</button>`
+            : `<button class="act ${opts.dis ? "dis" : ""} ${opts.danger ? "danger" : ""}" onclick="${opts.dis ? `A.toast('${opts.why}')` : onclick}">${icon}<span>${label}${opts.dis ? `<span class="why">${opts.why}</span>` : ""}</span></button>`);
+        if (inline) {
+          const html = actionListBody(r, v, act, items);
+          return items.length ? `<div class="row wrap" style="gap:6px">${items.join("")}</div>` : "";
+        }
+        actionListBody(r, v, act, items);
+        return items.length ? `<div class="actions">${items.join("")}</div>` : `<p class="small muted" style="margin:0">Nothing to do here for your role.</p>`;
+      }
+      function actionListBody(r, v, act, items) {
+        const anyWrite = SECTIONS.some((s) => ["write", "clear"].includes(mode(v, r, s)));
+        if (anyWrite) act(I.pen, t("editProfile"), `A.go('/person/${r.id}/edit')`);
+        if (!r.ended && r.account === "none" && canAct("invite", v, r)) act(I.send, r.invite ? "Resend invite" : t("invite"), `A.open('invite',{id:'${r.id}'})`, lapsed() ? { dis: 1, why: "Invites need Enterprise" } : {});
+        if (!r.ended && r.account === "deleted" && canAct("invite", v, r)) act(I.send, t("invite"), "", { dis: 1, why: "Account deleted. End this Employment first; the person rejoins on a new one." });
+        if (!r.ended && canAct("changeType", v, r)) act(I.swap, t("changeType"), `A.open('type',{id:'${r.id}'})`, lapsed() ? { dis: 1, why: "Needs Enterprise" } : {});
+        if (!r.ended && canAct("end", v, r)) act(I.stop, r.type === "external" ? t("endEng") : t("endEmp"), `A.open('end',{id:'${r.id}'})`);
+        if (r.prevSpell && (v.owner || v.orgAdmin || v.roles.includes("hr"))) act(I.copy, t("copyPrev"), `A.open('copy',{id:'${r.id}'})`, lapsed() ? { dis: 1, why: "Setting values needs Enterprise" } : {});
+        if (isAdmin(v)) act(I.dl, t("exportPerson"), `A.open('export',{id:'${r.id}'})`);
+        else if (r.id === v.id && r.account === "bound") act(I.dl, t("exportMine"), `A.open('export',{id:'${r.id}',self:1})`);
+        if (v.owner || v.orgAdmin || v.roles.includes("hr")) act(I.hist, t("history"), `A.open('history',{id:'${r.id}'})`);
+        if (r.ended && isAdmin(v)) act(I.pause, r.hold ? t("liftHold") : t("setHold"), `A.open('hold',{id:'${r.id}'})`);
+        if (isAdmin(v)) act(I.trash, t("erase"), `A.open('erase',{id:'${r.id}'})`, { danger: 1 });
+        return items.length ? `<div class="actions">${items.join("")}</div>` : `<p class="small muted" style="margin:0">Nothing to do here for your role.</p>`;
+      }
+      function copyBanner(r, v) {
+        if (!r.prevSpell || !(v.owner || v.orgAdmin || v.roles.includes("hr"))) return "";
+        return `<div class="banner p">${I.copy}<div><b>${r.name} worked here before</b> (${fd(P[r.prevSpell].start)} to ${fd(P[r.prevSpell].ended)}). This spell started empty. You can copy the Photo and Personal sections the organization still holds.</div><button class="btn sm" onclick="A.open('copy',{id:'${r.id}'})">${t("copyPrev")}</button></div>`;
+      }
+      function pageProfile(id) {
+        const g = dirGate(); if (g) return g;
+        const r = P[id], v = viewer();
+        if (!r || r.erased) return `<div class="card">This person was erased.</div>`;
+        if (r.ended && !seesFormer(v)) return `<div class="card"><h2>Not available</h2><p class="muted">Former records reach only the owner, org admins and HR.</p></div>`;
+        if (level(v, r, "card") === "none") return `<div class="card">Not visible to you.</div>`;
+        const head = `<div class="phead">${avatar(r, v, 84)}<div><h1>${r.name}</h1>
+            <div class="muted" style="font-size:15px">${r.card.title} · ${deptName(r.card.dept)} · ${locName(r.card.loc)}</div>
+            <div class="row wrap" style="margin-top:8px;gap:4px">${statusChips(r, v)}${r.ended ? `<span class="chip">Former · ended ${fd(r.ended)}</span>` : ""}${r.hold ? `<span class="chip rev">${I.pause} ${t("hold")}</span>` : ""}</div></div></div>`;
+        const backLink = `<a class="small" onclick="A.go('${r.ended ? "/directory/former" : "/directory"}')">← ${r.ended ? t("tabFormer") : t("directory")}</a>`;
+        const holdBanner = r.hold ? `<div class="banner rev">${I.pause}<div><b>Retention hold.</b> Retention purges skip this record until the hold is lifted. Set by ${r.hold.by} on ${fd(r.hold.at)}. Erasure still works.</div>${isAdmin(v) ? `<button class="btn sm out" onclick="A.open('hold',{id:'${r.id}'})">${t("liftHold")}</button>` : ""}</div>` : "";
+        const exp = S.exports[r.id];
+        const expLine = exp ? `<div class="box small">${exp.state === "ready" ? `${I.dl} Export ready, available until ${fd(exp.until)}. <a onclick="A.toast('Link re-signed. Download starts.')">Download</a>` : `<span class="spinner"></span> Preparing export…`}</div>` : "";
+        if (S.pv === "A") {
+          return `${backLink}<div style="height:10px"></div>${lapseBanner()}${copyBanner(r, v)}${holdBanner}
+            <div class="pgridA"><div class="stack">${`<div class="card">${head}</div>`}${SECTIONS.map((s) => sectionCard(r, s, v)).join("")}</div>
+            <div class="stack"><div class="card tight"><h2 style="margin-bottom:8px">${t("record")}</h2>${recordFacts(r, v)}</div>
+            <div class="card tight"><h2 style="margin-bottom:8px">${t("actions")}</h2>${actionList(r, v)}${expLine}</div>
+            ${ann(`Layout A: one page, sections stacked, record facts and actions in a right rail. Avatar order: Profile photo, then Account picture while bound, then initials.`)}</div></div>`;
+        }
+        const tabs = [["overview", "Overview", ["card", "photo", "workContact"]], ["job", t("sec_job"), ["job"]], ["contact", t("sec_contact"), ["contact"]], ["personal", t("sec_personal"), ["personal"]], ["record", t("record"), []]];
+        const visTabs = tabs.filter(([k, , secs]) => !secs.length || secs.some((s) => !["none", "na"].includes(level(v, r, s))) || S.ann);
+        const cur = visTabs.find((x) => x[0] === S.ptab) || visTabs[0];
+        return `${backLink}<div style="height:10px"></div>${lapseBanner()}${copyBanner(r, v)}${holdBanner}
+          <div class="card">${head}<div style="margin-top:16px">${actionList(r, v, true)}</div>${expLine}</div>
+          <div class="tabs">${visTabs.map(([k, label, secs]) => { const hid = secs.length && secs.every((s) => ["none", "na"].includes(level(v, r, s))); return `<div class="tab ${cur[0] === k ? "on" : ""}" onclick="S.ptab='${k}';render()">${label}${hid ? ` <span class="faint">${I.lock}</span>` : ""}</div>`; }).join("")}</div>
+          <div class="stack" style="max-width:820px">${cur[0] === "record" ? `<div class="card">${recordFacts(r, v)}</div>` : cur[2].map((s) => sectionCard(r, s, v)).join("")}</div>
+          ${ann("Layout B: header with actions as buttons, one tab per section group. Tabs the viewer can't read are hidden in the product (shown with a lock here only while annotations are on).")}`;
+      }
+
+      // ---------- edit form ----------
+      function defaultCountry(r) {
+        const loc = LOCS.find((l) => l.id === r.card.loc);
+        if (loc && loc.country) return { code: loc.country, why: `the Location's country (${loc.name})` };
+        if (S.lang === "cs") return { code: "CZ", why: "the UI language (Czech)" };
+        return { code: "", why: "nothing: the Location has no country and English names no country" };
+      }
+      function phoneField(path, value, def, dis) {
+        let cc = def, num = value || "";
+        const m = (value || "").match(/^(\+\d+)\s(.*)$/);
+        if (m) { const c = COUNTRIES.find((x) => x[3] === m[1]); if (c) { cc = c[0]; num = m[2]; } }
+        const code = (COUNTRIES.find((x) => x[0] === cc) || [])[3] || "";
+        return `<div class="phone"><select data-cc="${path}" ${dis}><option value="">Country</option>${COUNTRIES.map((c) => `<option value="${c[3]}" ${c[3] === code ? "selected" : ""}>${c[0]} ${c[3]}</option>`).join("")}</select><input data-f="${path}" data-phone="1" value="${num}" placeholder="Number" ${dis}></div>`;
+      }
+      function pageEdit(id) {
+        const g = dirGate(); if (g) return g;
+        const r = P[id], v = viewer();
+        if (!r || !SECTIONS.some((s) => ["write", "clear"].includes(mode(v, r, s)))) return `<div class="card">You can't edit this record.</div>`;
+        const ext = r.type === "external";
+        const def = defaultCountry(r);
+        const bound = r.account === "bound" && !r.ended;
+        const nameDis = bound || !(isAdmin(v) || v.roles.includes("hr")) || lapsed() ? "disabled" : "";
+        const inp = (path, val, dis, type = "text", ph = "") => `<input data-f="${path}" type="${type}" value="${val || ""}" placeholder="${ph}" ${dis}>`;
+        const clr = (path, val, m) => (m === "clear" && val ? `<button class="btn xs ghost clearbtn" onclick="A.clearField('${r.id}','${path}')">Clear</button>` : "");
+        const F = (label, html, extra = "", cls = "") => `<div class="field ${cls}"><label class="f">${label}</label>${html}${extra}</div>`;
+        const sel = (path, val, opts, dis) => `<select data-f="${path}" ${dis}><option value="">—</option>${opts.map(([k, l]) => `<option value="${k}" ${k === val ? "selected" : ""}>${l}</option>`).join("")}</select>`;
+        const sec = (s, inner) => {
+          const l = level(v, r, s), m = mode(v, r, s);
+          if (l === "na") return "";
+          if (l === "none") return S.ann ? `<div class="hiddenph"><b>${t("sec_" + s)}</b> · ${t("hidden")}. The edit form leaves it out.</div>` : "";
+          const dis = m === "write" ? "" : "disabled";
+          const sensitive = s === "contact" || s === "personal";
+          return `<div class="card esec ${m === "read" ? "ro" : ""}" id="${s}" data-sec="${s}"><div class="sec-h"><h2>${t("sec_" + s)}</h2>${sensitive ? `<span class="faint">${I.lock}</span>` : ""}${lvlChip(m)}</div>
+            ${m === "read" ? `<div class="sec-note">Read-only for you. Shown greyed so you can see what's there.</div>` : ""}
+            ${m === "clear" ? `<div class="sec-note">${I.lock} On Pro you can clear values but not set new ones.</div>` : ""}
+            ${inner(dis, m)}</div>`;
+        };
+        const deptOpts = DEPTS.filter((d) => !d.archived || d.id === r.card.dept).map((d) => [d.id, d.name + (d.archived ? " (archived)" : "")]);
+        const locOpts = LOCS.filter((d) => !d.archived || d.id === r.card.loc).map((d) => [d.id, d.name]);
+        const rtOpts = openPeople().filter((p) => p.id !== r.id).sort((a, b) => a.name.localeCompare(b.name)).map((p) => [p.id, p.name]);
+        const countryOpts = COUNTRIES.map((c) => [c[0], S.lang === "cs" ? c[2] : c[1]]);
+        const noticeText = S.notice[S.lang].replaceAll("{org}", ORG).replace("{period}", S.ret.contact === "end" ? (S.lang === "cs" ? "hned" : "right") : periodWord(S.ret.contact));
+        return `<a class="small" onclick="A.go('/person/${r.id}')">← ${r.name}</a>
+          <div class="row" style="margin:10px 0 18px"><div class="grow"><h1>${t("editProfile")}</h1><p class="muted" style="margin:4px 0 0">${r.name} · ${r.card.title}</p></div></div>
+          ${lapseBanner()}
+          <div class="stack" style="max-width:820px">
+          <div class="card" data-sec="record"><div class="sec-h"><h2>${t("record")}</h2></div><div class="fgrid">
+            ${F(t("f_name"), inp("name", r.name, nameDis), bound ? `<div class="lockline">${I.lock} From ${r.id === v.id ? "your" : "their"} account. ${r.id === v.id ? "Change it in Settings." : "Nobody edits it here while the account is bound."}</div>` : r.account === "deleted" ? `<div class="lockline">Frozen copy. The account was deleted.</div>` : "")}
+            ${isAdmin(v) || v.roles.includes("hr") || r.id === v.id ? F(t("f_signIn"), inp("email", r.email, nameDis, "email"), bound ? `<div class="lockline">${I.lock} From the account. Colleagues never see it on directory pages.</div>` : `<div class="hint">Optional. Needed to send an invite.</div>`) : ""}
+          </div></div>
+          ${sec("card", (dis, m) => `<div class="fgrid">
+            ${F(t("f_title"), inp("card.title", r.card.title, dis), clr("card.title", r.card.title, m))}
+            ${F(t("f_dept"), sel("card.dept", r.card.dept, deptOpts, dis), canAct("manageLists", v) ? `<a class="hint" onclick="A.go('/directory/settings/lists')">Manage departments</a>` : "")}
+            ${F(t("f_loc"), sel("card.loc", r.card.loc, locOpts, dis), clr("card.loc", r.card.loc, m))}
+            ${F(t("f_reportsTo"), sel("card.reportsTo", r.card.reportsTo, rtOpts, dis), `<div class="hint">Informational. It grants no rights.</div>`)}
+          </div>`)}
+          ${sec("photo", (dis, m) => `<div class="row" style="gap:14px">${avatar(r, v, 64)}<div>${m === "write" ? `<button class="btn sm out" onclick="A.fakeUpload('${r.id}')">${I.cam} Upload photo</button> ` : ""}${r.photo != null && m !== "read" ? `<button class="btn sm ghost" onclick="A.removePhoto('${r.id}')">Remove</button>` : ""}<div class="hint">Upload only, never copied from the account picture. JPEG, small and full size. Shows on directory pages only.</div></div></div>`)}
+          ${sec("workContact", (dis, m) => `<div class="fgrid">
+            ${F(t("f_workEmail"), inp("work.email", r.work.email, dis, "email"), (dis ? "" : `<a class="hint" onclick="A.useSignIn('${r.id}')">Use sign-in email (${r.email})</a>`) + clr("work.email", r.work.email, m))}
+            ${F(t("f_workPhone"), phoneField("work.phone", r.work.phone, def.code, dis), `<div class="hint">Country defaults to ${def.why}.</div>`)}
+          </div>`)}
+          ${sec("job", (dis, m) => `<div class="fgrid">
+            ${F(t("f_legal"), inp("job.legal", r.job.legal, dis, "text", "Only if it differs from the name"), clr("job.legal", r.job.legal, m))}
+            ${F(t("f_number"), inp("job.number", r.job.number, dis), `<div class="hint">Unique among open Employments.</div>`)}
+            ${F(t("f_start"), inp("job.start", r.job.start, dis, "date"), `<div class="hint">Defaults to the spell start (${fd(r.start)}).</div>`)}
+            ${ext ? "" : F(t("f_probation"), inp("job.probation", r.job.probation, dis, "date"), clr("job.probation", r.job.probation, m))}
+            ${F(t("f_leaving"), inp("job.leaving", r.job.leaving, dis, "date"), `<div class="hint">Informational. It ends nothing.</div>`)}
+            ${ext ? "" : F(t("f_contract"), sel("job.contract", r.job.contract, [["permanent", t("ct_permanent")], ["fixed", t("ct_fixed")], ["apprentice", t("ct_apprentice")], ["intern", t("ct_intern")], ["other", t("ct_other")]], dis))}
+            ${ext ? "" : F(t("f_wt"), sel("job.wt", r.job.wt, [["full", t("wt_full")], ["part", t("wt_part")]], dis))}
+          </div>`)}
+          ${sec("contact", (dis, m) => `<div class="fgrid">
+            ${F(t("f_pphone"), phoneField("contact.phone", r.contact.phone, def.code, dis), clr("contact.phone", r.contact.phone, m))}
+            ${F(t("f_pemail"), inp("contact.email", r.contact.email, dis, "email"), clr("contact.email", r.contact.email, m))}
+            ${[0, 1].map((i) => F(`${t("f_ec")} ${i + 1} · ${t("f_ecName")}`, inp(`contact.ec.${i}.name`, r.contact.ec[i].name, dis)) + F(`${t("f_ec")} ${i + 1} · ${t("f_ecPhone")}`, phoneField(`contact.ec.${i}.phone`, r.contact.ec[i].phone, def.code, dis), clr(`contact.ec.${i}.phone`, r.contact.ec[i].phone, m))).join("")}
+          </div>
+          <div class="notice"><b>${S.lang === "cs" ? "Předejte to svým kontaktům" : "Pass this on to your contacts"}</b>${noticeText}</div>
+          ${ann("Art. 14 notice: under the emergency contacts, shown to whoever edits them. Default text from the product, final wording from the owner (Directory settings, General). The period comes from the Contact retention setting.")}`)}
+          ${sec("personal", (dis, m) => `<div class="fgrid">
+            ${F(t("f_a1"), inp("personal.a1", r.personal.a1, dis), clr("personal.a1", r.personal.a1, m), "full")}
+            ${F(t("f_a2"), inp("personal.a2", r.personal.a2, dis), "", "full")}
+            ${F(t("f_postal"), inp("personal.postal", r.personal.postal, dis))}
+            ${F(t("f_city"), inp("personal.city", r.personal.city, dis))}
+            ${F(t("f_region"), inp("personal.region", r.personal.region, dis))}
+            ${F(t("f_country"), sel("personal.country", r.personal.country, countryOpts, dis))}
+            ${F(t("f_dob"), inp("personal.dob", r.personal.dob, dis, "date"), clr("personal.dob", r.personal.dob, m))}
+          </div><div class="hint">Line 1, city and country are needed once any part of the address is filled.</div>`)}
+          <div class="row" style="justify-content:flex-end"><button class="btn out" onclick="A.go('/person/${r.id}')">${t("cancel")}</button><button class="btn" onclick="A.saveEdit('${r.id}')">${t("save")}</button></div>
+          ${ann(`Editing as ${t("aud_" + S.role)}. Saves go live with no approval. ${r.id !== v.id && ["contact", "personal"].some((s) => level(v, r, s) !== "none") ? "Opening this form wrote a read-log row, like the profile page does." : ""}`)}
+          </div>`;
+      }
+
+      // ---------- directory settings ----------
+      function settingsShell(sub, inner) {
+        const g = dirGate(); if (g) return g;
+        const v = viewer();
+        const items = [];
+        if (readsTable(v)) items.push(["permissions", t("perms")], ["roles", t("roles")]);
+        if (isAdmin(v)) items.push(["retention", t("retention")]);
+        if (canAct("manageLists", v)) items.push(["lists", t("lists")]);
+        if (isAdmin(v)) items.push(["readlog", t("readLog")]);
+        if (readsTable(v)) items.push(["general", t("general")]);
+        if (!items.find((x) => x[0] === sub)) return dirHeader("settings") + `<div class="card">Not available for your role.</div>`;
+        return dirHeader("settings") + `<div class="settings"><div class="subnav">${items.map(([k, l]) => `<div class="nav ${k === sub ? "on" : ""}" onclick="A.go('/directory/settings/${k}')">${l}</div>`).join("")}</div><div class="stack">${inner()}</div></div>`;
+      }
+      function cellOptions(row, aud) {
+        if (SECTIONS.includes(row)) {
+          if (aud === "owner") return { fixed: "write" };
+          if (aud === "self" && (row === "card" || row === "job")) return { fixed: "read" };
+          if (aud === "self") return ["read", "write"];
+          if (aud === "colleague" || aud === "external") return ["none", "read"];
+          return ["none", "read", "write"];
+        }
+        if (!(aud in S.acts[row])) return null;
+        if (aud === "owner") return { fixed: "allowed" };
+        return ["no", "allowed"];
+      }
+      function pagePermissions() {
+        return settingsShell("permissions", () => {
+          const v = viewer();
+          const editable = v.owner;
+          const rank = (x) => ({ none: 0, read: 1, write: 2, no: 0, allowed: 1 })[x];
+          const cell = (row, aud) => {
+            const o = cellOptions(row, aud);
+            if (o === null) return `<td class="faint">–</td>`;
+            if (o.fixed) return `<td><span class="pill ${o.fixed} fixed" title="Fixed: the owner can't change this cell">${I.lock}${t("lv_" + o.fixed)}</span></td>`;
+            const cur = (S.perms[row] || S.acts[row])[aud];
+            if (!editable) return `<td><span class="pill ${cur}">${t("lv_" + cur)}</span></td>`;
+            return `<td><select onchange="A.setPerm('${row}','${aud}',this.value)">${o.map((x) => `<option value="${x}" ${x === cur ? "selected" : ""} ${lapsed() && rank(x) > rank(cur) ? "disabled" : ""}>${t("lv_" + x)}</option>`).join("")}</select></td>`;
+          };
+          return `<div class="card">
+            <div class="card-h"><h2>${t("perms")}</h2>${editable ? "" : `<span class="chip">${t("readOnly")}</span>`}</div>
+            <p class="muted small" style="margin:-6px 0 14px">Who reads or writes each section, and who may do each act. When someone holds several audiences, the widest cell wins. Changes apply at once, with no approval step.${lapsed() ? " <b>On Pro you can narrow cells but not widen them.</b>" : ""}</p>
+            <div style="overflow-x:auto"><table class="t perm"><thead><tr><th></th>${AUDS.map((a) => `<th>${t("aud_" + a)}</th>`).join("")}</tr></thead><tbody>
+              ${SECTIONS.map((s) => `<tr><td><b>${t("sec_" + s)}</b>${s === "contact" || s === "personal" ? ` <span class="faint">${I.lock}</span>` : ""}</td>${AUDS.map((a) => cell(s, a)).join("")}</tr>`).join("")}
+              <tr><td colspan="9" style="padding-top:16px" class="small faint">ACTS</td></tr>
+              ${ACTS.map((r) => `<tr class="actrow"><td>${t("act_" + r)}</td>${AUDS.map((a) => cell(r, a)).join("")}</tr>`).join("")}
+            </tbody></table></div>
+            ${ann("Fixed cells are outlined with a lock. Colleague and External worker only offer None or Read. Group admin has no End cell. Try narrowing Card · External worker to None, then switch the viewer to External.")}
+          </div>
+          <div class="card"><div class="card-h"><h2>Permission history</h2><span class="chip">Owner, org admins, HR</span></div>
+            <table class="t"><tbody>${S.permHistory.map((h) => `<tr><td class="small muted" style="white-space:nowrap">${h.at}</td><td>${h.by}</td><td>${h.text}</td></tr>`).join("")}</tbody></table></div>`;
+        });
+      }
+      function pageRoles() {
+        return settingsShell("roles", () => {
+          const v = viewer();
+          const eligible = openPeople().filter((p) => p.account === "bound");
+          const block = (role, label, desc) => {
+            const holders = openPeople().filter((p) => p.roles.includes(role));
+            return `<div class="card"><div class="card-h"><h2>${label}</h2><span class="muted small">${desc}</span></div>
+              ${holders.map((p) => `<div class="row" style="padding:8px 0;border-bottom:1px dashed var(--border)">${avatar(p, v, 30)}<div class="grow"><b>${p.name}</b><div class="small muted">${p.card.title}</div></div>${v.owner ? `<button class="btn xs ghost" onclick="A.removeRole('${role}','${p.id}')">Remove</button>` : ""}</div>`).join("") || `<p class="muted small">Nobody holds this role.</p>`}
+              ${v.owner ? `<div class="row" style="margin-top:12px"><select id="as-${role}"><option value="">Pick a person…</option>${eligible.filter((p) => !p.roles.includes(role)).map((p) => `<option value="${p.id}">${p.name}</option>`).join("")}</select><button class="btn sm" onclick="A.assignRole('${role}',document.getElementById('as-${role}').value)">Assign</button></div><div class="hint">Only people with an open Employment and an account. Account-less people can't hold a role.</div>` : ""}</div>`;
+          };
+          return `${v.owner ? "" : `<div class="banner p">${I.lock}<div>Only the owner assigns directory roles. You can see who holds them.</div></div>`}
+            ${block("hr", "HR", "Reads and writes every section by default, sees the Former list.")}
+            ${block("leadership", "Leadership", "Reads Card, Photo, Work contact and Job across the organization.")}
+            ${ann("Being an org admin brings neither role. One person may hold both. Both end when the Employment ends. Changes land in the permission history.")}`;
+        });
+      }
+      function pageRetention() {
+        return settingsShell("retention", () => {
+          return `<div class="card"><div class="card-h"><h2>${t("retention")}</h2></div>
+            <p class="muted small" style="margin:-6px 0 14px">How long each section is kept after an Employment ends. A change also applies to people who already left. A shorter period removes what is past it at the next nightly run (02:00). A longer one brings nothing back.</p>
+            <table class="t"><thead><tr><th>Section</th><th>Kept after the end</th><th>Product default</th></tr></thead><tbody>
+            ${SECTIONS.map((s) => `<tr><td><b>${t("sec_" + s)}</b></td><td><select onchange="A.setRet('${s}',this.value)">${PERIODS.map((p) => `<option value="${p}" ${S.ret[s] === p ? "selected" : ""}>${t("per_" + p)}</option>`).join("")}</select></td><td class="muted">${t("per_" + { card: "forever", job: "forever", workContact: "30d", contact: "30d", personal: "3y", photo: "1y" }[s])}</td></tr>`).join("")}
+            </tbody></table>
+            <div class="hint" style="margin-top:10px">A Polish employer must set Personal to 10 years. GDPR sets no periods; national law does.</div>
+            ${ann("Owner and org admins only, on every plan. Try shortening Contact to 'At end': the dialog counts the people it hits before saving. Then open Ondřej Malý's profile to see the removal dates move.")}</div>
+            <div class="card"><div class="card-h"><h2>Retention holds</h2></div>${formerPeople().filter((p) => p.hold).map((p) => `<div class="row">${avatar(p, viewer(), 28)}<a onclick="A.go('/person/${p.id}')">${p.name}</a><span class="small muted">set by ${p.hold.by} on ${fd(p.hold.at)}</span></div>`).join("") || `<p class="muted small">No holds.</p>`}</div>`;
+        });
+      }
+      function pageLists() {
+        return settingsShell("lists", () => {
+          const listCard = (kind, arr, field) => {
+            const used = (id) => PEOPLE.filter((p) => !p.erased && p.card[field] === id).length;
+            return `<div class="card"><div class="card-h"><h2>${t(kind)}</h2></div>
+              <table class="t"><tbody>${arr.map((d) => { const n = used(d.id); return `<tr><td><b>${d.name}</b>${d.archived ? ` <span class="chip">archived</span>` : ""}${kind === "location" ? ` <span class="small muted">${d.country ? cName(d.country) : "no country"}</span>` : ""}</td><td class="small muted" style="white-space:nowrap">${n} ${n === 1 ? "record" : "records"}</td>
+                <td style="text-align:right;white-space:nowrap"><button class="btn xs ghost" onclick="(function(){const x=prompt('Rename','${d.name}');if(x){${kind === "department" ? "DEPTS" : "LOCS"}.find(e=>e.id==='${d.id}').name=x;render()}})()">${t("rename")}</button><button class="btn xs ghost" onclick="${kind === "department" ? "DEPTS" : "LOCS"}.find(e=>e.id==='${d.id}').archived=${!d.archived};render()">${d.archived ? t("restore") : t("archive")}</button>${n === 0 ? `<button class="btn xs danger" onclick="${kind === "department" ? "DEPTS" : "LOCS"}.splice(${kind === "department" ? "DEPTS" : "LOCS"}.findIndex(e=>e.id==='${d.id}'),1);render()">${t("del")}</button>` : ""}</td></tr>`; }).join("")}</tbody></table>
+              <div class="row" style="margin-top:12px"><input id="new-${kind}" placeholder="New ${kind}" ${lapsed() ? "disabled" : ""} style="flex:1">${kind === "location" ? `<select id="new-loc-c" ${lapsed() ? "disabled" : ""}><option value="">No country</option>${COUNTRIES.map((c) => `<option value="${c[0]}">${S.lang === "cs" ? c[2] : c[1]}</option>`).join("")}</select>` : ""}<button class="btn sm ${lapsed() ? "disabled" : ""}" onclick="${lapsed() ? "A.toast('Adding needs Enterprise')" : `(function(){const n=document.getElementById('new-${kind}').value.trim();if(!n)return;${kind === "department" ? "DEPTS.push({id:'d'+Date.now(),name:n})" : "LOCS.push({id:'l'+Date.now(),name:n,country:document.getElementById('new-loc-c').value||null})"};render()})()`}">${t("add")}</button></div>
+              ${lapsed() ? `<div class="hint">Adding needs Enterprise. Renaming and archiving work on every plan.</div>` : ""}</div>`;
+          };
+          return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">${listCard("department", DEPTS, "dept")}${listCard("location", LOCS, "loc")}</div>
+            ${ann("Delete shows only on unused entries; a used one can only be archived, because the Card is kept until erased. A Location's country only seeds the phone picker; it never drives holidays or attendance.")}`;
+        });
+      }
+      function pageReadLog() {
+        return settingsShell("readlog", () => {
+          const fp = S.f.lp || "", fr = S.f.lr || "";
+          const rows = S.readLog.filter((x) => (!fp || x.person === fp) && (!fr || x.reader === fr));
+          const ppl = [...new Set(S.readLog.map((x) => x.person))], rdr = [...new Set(S.readLog.map((x) => x.reader))];
+          return `<div class="card"><div class="card-h"><h2>${t("readLog")}</h2><span class="chip">Owner and org admins</span></div>
+            <p class="muted small" style="margin:-6px 0 12px">Who opened someone else's Contact or Personal section, and exports. Rows never hold values and are kept 12 months.</p>
+            <div class="filters"><select onchange="S.f.lp=this.value;render()"><option value="">Every person</option>${ppl.map((p) => `<option ${p === fp ? "selected" : ""}>${p}</option>`).join("")}</select><select onchange="S.f.lr=this.value;render()"><option value="">Every reader</option>${rdr.map((p) => `<option ${p === fr ? "selected" : ""}>${p}</option>`).join("")}</select></div>
+            <table class="t"><thead><tr><th>When</th><th>Reader</th><th>Person</th><th>Sections</th><th>Through</th><th>Kind</th></tr></thead><tbody>
+            ${rows.map((x) => `<tr><td class="small muted" style="white-space:nowrap">${x.at}</td><td>${x.reader}</td><td>${x.person}</td><td>${x.secs}</td><td>${x.aud}</td><td><span class="chip ${x.kind === "export" ? "warm" : ""}">${x.kind}</span></td></tr>`).join("")}
+            </tbody></table>${ann("Open a profile as HR or Org admin and come back: a new row appears. The person sees only dates and purposes, in their person export, without reader names.")}</div>`;
+        });
+      }
+      function pageGeneral() {
+        return settingsShell("general", () => {
+          const v = viewer();
+          return `<div class="card"><div class="card-h"><h2>Emergency contact notice</h2>${v.owner ? "" : `<span class="chip">${t("readOnly")}</span>`}</div>
+            <p class="muted small" style="margin:-6px 0 12px">Shown under the emergency contact fields for the person to pass on. The product ships this default. The final wording is yours. <code>{period}</code> follows the Contact retention setting.</p>
+            <label class="f">English</label><textarea rows="3" ${v.owner ? "" : "disabled"} onchange="S.notice.en=this.value">${S.notice.en}</textarea>
+            <label class="f" style="margin-top:10px">Čeština</label><textarea rows="3" ${v.owner ? "" : "disabled"} onchange="S.notice.cs=this.value">${S.notice.cs}</textarea></div>
+            <div class="card"><div class="card-h"><h2>Directory status</h2></div><p style="margin:0">On since ${fd("2026-09-02")}. Agreement version ${S.agreement.v}, accepted by ${S.agreement.by} on ${fd(S.agreement.at)}. Turning it off and the organization export live on the <a onclick="A.go('/organization')">Organization</a> page.</p></div>`;
+        });
+      }
+
+      // ---------- organization page ----------
+      function pageOrganization() {
+        const v = viewer();
+        if (!(isAdmin(v) || v.manages.length)) return `<div class="card">Organization settings are for admins.</div>`;
+        const owner = v.owner;
+        let dirCard;
+        if (S.plan === "none") dirCard = `<p class="muted" style="margin:0 0 12px">Available on Enterprise.</p><button class="btn sm out" onclick="A.toast('Opens Billing')">${t("seePlans")}</button>`;
+        else if (!S.enabled) dirCard = `<p class="muted" style="margin:0 0 12px">Off. Turning it on shows the directory agreement to accept first.</p>${owner ? `<button class="btn sm ${lapsed() ? "disabled" : ""}" onclick="${lapsed() ? "A.toast('Turning it back on needs Enterprise')" : "A.open('agreement',{v:S.agreementV2?2:1})"}">Turn on</button>${lapsed() ? `<div class="hint">A lapsed organization can't turn it back on until it pays.</div>` : ""}` : `<div class="hint">Only the owner can turn it on.</div>`}`;
+        else dirCard = `<p style="margin:0 0 6px"><span class="chip ok">On</span> since ${fd("2026-09-02")}</p><p class="small muted" style="margin:0 0 12px">Agreement version ${S.agreement.v}, accepted by ${S.agreement.by} on ${fd(S.agreement.at)}.</p>
+          ${S.agreementV2 && owner ? `<div class="banner rev" style="margin-bottom:10px">${I.book}<div>Version 2 of the agreement is ready. Nothing is paused.</div><button class="btn sm" onclick="A.open('agreement',{v:2})">Review</button></div>` : ""}
+          ${owner ? `<div class="row wrap"><button class="btn sm out" onclick="A.open('turnoff')">Turn off</button><button class="btn sm danger" onclick="A.open('deldir')">Delete all directory data</button>${S.agreementV2 ? "" : `<button class="btn xs ghost" onclick="S.agreementV2=true;render()" title="Prototype only">simulate agreement v2</button>`}</div>` : `<div class="hint">Only the owner can turn it off or delete its data.</div>`}`;
+        const exp = S.orgExport;
+        return `<h1>${t("organization")}</h1><p class="muted" style="margin:4px 0 20px">The payer your groups belong to, and who runs it.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div class="card"><div class="card-h">${I.building}<h2>Details</h2></div><label class="f">Organization name</label><input value="${ORG}" style="width:100%" disabled></div>
+            <div class="card"><div class="card-h">${I.pay}<h2>Plan</h2></div><p style="margin:0">${ORG} · ${S.plan === "ent" ? "Enterprise" : S.plan === "lapsed" ? "Pro (was Enterprise)" : "Pro"}</p></div>
+            <div class="card"><div class="card-h">${I.book}<h2>People directory</h2></div>${dirCard}</div>
+            ${owner ? `<div class="card"><div class="card-h">${I.dl}<h2>Organization export</h2></div><p class="muted small" style="margin:0 0 12px">Everything the organization holds: one folder per person plus groups, memberships, settings and group events. ZIP, kept 7 days.</p>
+              ${!exp ? `<button class="btn sm out" onclick="S.orgExport={state:'prep'};render();setTimeout(()=>{S.orgExport={state:'ready',until:'${plus7()}'};render()},1500)">${I.dl} Export everything</button>` : exp.state === "prep" ? `<span class="spinner"></span> Preparing…` : `<button class="btn sm" onclick="A.toast('Link re-signed. Download starts.')">${I.dl} Download</button> <span class="small muted">until ${fd(exp.until)}</span>`}</div>` : ""}
+          </div>
+          ${!S.enabled || S.plan === "none" ? `<div class="card" style="margin-top:16px"><div class="card-h">${I.users}<h2>People</h2></div><p class="muted small" style="margin:-6px 0 8px">Without the directory, the person export sits here.</p>
+            <table class="t"><tbody>${openPeople().slice(0, 4).map((p) => `<tr><td>${p.name}</td><td class="small muted">${p.email}</td><td style="text-align:right">${isAdmin(v) ? `<button class="btn xs out" onclick="A.open('export',{id:'${p.id}'})">${I.dl} Export</button>` : ""}</td></tr>`).join("")}</tbody></table></div>` : ""}
+          ${owner ? `<div class="card" style="margin-top:16px;box-shadow:0 0 0 1px var(--danger-soft)"><div class="card-h"><h2 style="color:var(--danger)">Delete organization</h2></div><button class="btn sm danger" onclick="A.open('delorg')">${I.trash} Delete ${ORG}</button></div>` : ""}
+          ${ann("The enable switch, agreement, turn-off, delete-all and organization export live on the existing Organization page, because the directory's own pages don't exist until it's on. Switch the viewer to Org admin to see the 'only the owner' notes.")}`;
+      }
+
+      // ---------- dialogs ----------
+      function dlg(title, body, footer, wide) {
+        return `<div class="ov" onclick="if(event.target===this)A.close()"><div class="dlg ${wide ? "wide" : ""}"><div class="dlg-h"><h3>${title}</h3><button class="x" onclick="A.close()">×</button></div><div class="dlg-b">${body}</div><div class="dlg-f">${footer}</div></div></div>`;
+      }
+      const cancelBtn = () => `<button class="btn out" onclick="A.close()">${t("cancel")}</button>`;
+      function dialog() {
+        const d = S.dialog; if (!d) return "";
+        const v = viewer(); const r = d.id ? P[d.id] : null;
+        switch (d.kind) {
+          case "end": {
+            const ext = r.type === "external";
+            const fromLeaving = r.job.leaving && r.job.leaving <= TODAY;
+            const date = fromLeaving ? r.job.leaving : TODAY;
+            const reports = openPeople().filter((p) => p.card.reportsTo === r.id);
+            const atEnd = SECTIONS.filter((s) => S.ret[s] === "end");
+            const blocked = r.manages.length > 0;
+            return dlg(`${ext ? t("endEng") : t("endEmp")} · ${r.name}`,
+              `<label class="f">Last day</label><input type="date" id="enddate" value="${date}" max="${TODAY}">
+              <div class="hint">${fromLeaving ? `Filled in from the Leaving date (${fd(r.job.leaving)}).` : "Today or earlier. A future leaving date is a Job field, not a scheduled end."}</div>
+              ${reports.length ? `<div class="box warn"><b>Reports to is cleared on ${reports.length} ${reports.length === 1 ? "record" : "records"}:</b><ul>${reports.map((p) => `<li>${p.name}</li>`).join("")}</ul></div>` : ""}
+              <div class="box"><b>Ending also:</b><ul><li>removes them from every group${r.groups.length ? ` (${r.groups.join(", ")})` : ""}</li><li>cancels their pending and future bookings</li>${r.orgAdmin ? "<li>drops their org admin row</li>" : ""}${r.roles.length ? `<li>ends their directory roles (${r.roles.join(", ")})</li>` : ""}${atEnd.length ? `<li>clears ${atEnd.map((s) => t("sec_" + s)).join(", ")} now (retention set to At end)</li>` : ""}<li>moves the record to the Former list, where retention dates start</li></ul><div class="small muted" style="margin-top:6px">${r.account === "bound" ? "Their account stays." : ""}</div></div>
+              ${blocked ? `<div class="box danger">${r.name} manages ${r.manages.join(", ")}. Pick another manager for that group first.</div>` : ""}`,
+              cancelBtn() + `<button class="btn ${blocked ? "disabled" : ""}" ${blocked ? "" : `onclick="DLG.end('${r.id}')"`}>${ext ? t("endEng") : t("endEmp")}</button>`);
+          }
+          case "type": {
+            const toExt = r.type === "employee";
+            const held = [["Contract type", r.job.contract], ["Working time", r.job.wt], ["Probation end date", r.job.probation], ["Personal section (home address, date of birth)", r.personal.a1 || r.personal.dob]];
+            return dlg(toExt ? `Change ${r.name} to external worker` : `Change ${r.name} to employee`,
+              toExt ? `<p>External workers carry no contract type, working time, probation date or Personal section. Changing the type clears these now:</p><div class="box warn"><ul>${held.map(([l, val]) => `<li>${l}${val ? " · <b>has a value</b>" : " · empty"}</li>`).join("")}</ul></div><p class="small muted">They keep their groups with zero quota. They can't clock in.</p>`
+                : `<p>Contract type, working time, probation end date and the Personal section start empty. Fill them in from the edit form.</p>`,
+              cancelBtn() + `<button class="btn" onclick="DLG.type('${r.id}')">${toExt ? "Change and clear" : "Change type"}</button>`);
+          }
+          case "copy": {
+            const pr = P[r.prevSpell];
+            const opt = (s, label) => {
+              if (s === "personal" && r.type === "external") return `<label class="row faint"><input type="checkbox" disabled> ${label} · skipped, the new spell is external</label>`;
+              if (pr.removed[s]) return `<label class="row faint"><input type="checkbox" disabled> ${label} · removed by retention on ${fd(pr.removed[s])}</label>`;
+              const has = s === "photo" ? pr.photo != null : s === "contact" ? pr.contact.phone || pr.contact.email : pr.personal.a1 || pr.personal.dob;
+              if (!has) return `<label class="row faint"><input type="checkbox" disabled> ${label} · nothing held</label>`;
+              return `<label class="row"><input type="checkbox" class="cp" value="${s}" checked> ${label} · held, ${t("dueOn", { d: fd(addP(pr.ended, S.ret[s])) }).toLowerCase()}</label>`;
+            };
+            return dlg(`${t("copyPrev")}`,
+              `<p>${r.name}'s earlier spell ran ${fd(pr.start)} to ${fd(pr.ended)}. Copy whole sections into this spell:</p><div class="stack-s">${opt("contact", t("sec_contact"))}${opt("personal", t("sec_personal"))}${opt("photo", t("sec_photo"))}</div><p class="small muted" style="margin-top:12px">Card, Work contact and Job never carry over. Copying overwrites what this spell holds in those sections.</p>`,
+              cancelBtn() + `<button class="btn" onclick="DLG.copy('${r.id}')">Copy</button>`);
+          }
+          case "hold":
+            return r.hold
+              ? dlg(t("liftHold"), `<p>Held since ${fd(r.hold.at)} by ${r.hold.by}. Lifting it lets the next nightly run remove whatever is past its period.</p>${SECTIONS.map((s) => { const p = S.ret[s]; if (p === "forever" || r.removed[s]) return ""; const due = addP(r.ended, p); return due <= TODAY ? `<div class="box warn small">${t("sec_" + s)} is past its period and goes tonight.</div>` : ""; }).join("")}`, cancelBtn() + `<button class="btn" onclick="DLG.hold('${r.id}')">${t("liftHold")}</button>`)
+              : dlg(t("setHold"), `<p>Retention purges skip ${r.name}'s record until someone lifts the hold. Erasure still works. The hold records who set it and when.</p>`, cancelBtn() + `<button class="btn" onclick="DLG.hold('${r.id}')">${t("setHold")}</button>`);
+          case "export": {
+            const st = S.exports[r.id];
+            const spells = PEOPLE.filter((p) => p.email === r.email);
+            const body = `<p>${d.self ? "Everything Acme s.r.o. holds about you" : `Everything the organization holds about ${r.name}`}, across ${spells.length} ${spells.length === 1 ? "spell" : "spells"}: profile sections still held, the photo, groups and quotas, bookings with attachments, attendance, the change log, and the dates and purposes of reads.</p>
+              <div class="box small">ZIP with <code>person.json</code>, one CSV per list, and files. Built in the background. You get an in-app notification. Nothing goes by email.</div>
+              ${st ? (st.state === "ready" ? `<div class="box">${I.dl} <b>Ready.</b> Available until ${fd(st.until)}. Each click signs a fresh link.</div>` : `<div class="box"><span class="spinner"></span> Preparing…</div>`) : ""}`;
+            const foot = !st ? cancelBtn() + `<button class="btn" onclick="DLG.exp('${r.id}')">Start export</button>` : st.state === "ready" ? `<button class="btn out" onclick="A.close()">${t("close")}</button><button class="btn" onclick="A.toast('Link re-signed. Download starts.')">${I.dl} Download</button>` : `<button class="btn out" onclick="A.close()">Close, keep preparing</button>`;
+            return dlg(d.self ? t("exportMine") : `${t("exportPerson")} · ${r.name}`, body, foot);
+          }
+          case "erase":
+            return dlg(`${t("erase")} · ${r.name}`, `<div class="box danger">This deletes every profile section, the photo and the profile history of ${r.name}, in every spell, now. It can't be undone. Backups expire within 7 days.</div><p class="small">Bookings and attendance are a separate question for <a>T-482</a> and stay in this prototype.</p><label class="f">Type the name to confirm</label><input id="erasename" style="width:100%" placeholder="${r.name}">`, cancelBtn() + `<button class="btn danger" onclick="DLG.erase('${r.id}')">Erase</button>`);
+          case "invite":
+            return dlg(`${t("invite")} · ${r.name}`, `<label class="f">Email</label><input id="invemail" type="email" value="${r.email}" style="width:100%"><div class="hint">The invite targets this record. Redeeming it binds the account. The sign-up form fills in "${r.name}".</div>
+              <label class="f" style="margin-top:12px">Group (optional)</label><select style="width:100%"><option>No group</option><option>Support</option><option>Engineering</option></select>`, cancelBtn() + `<button class="btn" onclick="DLG.invite('${r.id}')">${I.send} ${t("invite")}</button>`);
+          case "add":
+            return dlg(t("addPerson"), `<div class="fgrid"><div class="field full"><label class="f">${t("f_name")}</label><input id="addname" placeholder="Required"></div>
+              <div class="field full"><label class="f">Email</label><input id="addemail" type="email" placeholder="Optional, needed for an invite"></div>
+              <div class="field full"><label class="f">Type</label><div class="row"><label class="row"><input type="radio" name="addtype" value="employee" checked> Employee</label><label class="row"><input type="radio" name="addtype" value="external"> ${t("external")}</label></div></div>
+              <div class="field full"><label class="row"><input type="checkbox" id="addinv"> Send an invite now</label></div></div>
+              <p class="small muted">The person exists only in the directory until they redeem an invite. Nobody books leave or records attendance for them.</p>`, cancelBtn() + `<button class="btn" onclick="DLG.add()">Add</button>`);
+          case "retention": {
+            const has = (p, s) => ({ card: p.card.title, photo: p.photo != null, workContact: p.work.email || p.work.phone, job: p.job.number || p.job.start, contact: p.contact.phone || p.contact.email || p.contact.ec[0].name, personal: p.personal.a1 || p.personal.dob })[s];
+            const n = formerPeople().filter((p) => has(p, d.sec) && !p.hold && !p.removed[d.sec] && addP(p.ended, d.val) <= TODAY && (S.ret[d.sec] === "forever" || addP(p.ended, S.ret[d.sec]) > TODAY)).length;
+            return dlg(`Shorten ${t("sec_" + d.sec)}?`, `<p>From ${t("per_" + S.ret[d.sec])} to ${t("per_" + d.val)}.</p><div class="box ${n ? "warn" : ""}">${n ? `<b>The next nightly run removes ${t("sec_" + d.sec)} for ${n} ${n === 1 ? "person" : "people"}.</b> Records on hold are skipped.` : "Nobody's data is past the new period yet."}</div><p class="small muted">Lengthening it again later brings nothing back.</p>`,
+              cancelBtn() + `<button class="btn" onclick="S.ret['${d.sec}']='${d.val}';A.close();A.toast('Retention saved')">Shorten</button>`);
+          }
+          case "agreement":
+            return dlg(`People directory agreement · version ${d.v}`, `<div class="box" style="height:170px;overflow:auto;font-size:13px">(The owner's legal text goes here: Flexi Day processes directory data on ${ORG}'s instructions, no biometric processing of photos, sub-processors, retention, return and deletion at the end of service…)</div>
+              <label class="row" style="margin-top:12px"><input type="checkbox" id="agree" onchange="document.getElementById('agreeBtn').disabled=!this.checked"> I accept this agreement for ${ORG}</label>
+              <p class="small muted">We record who accepted, when, and which version.</p>`, cancelBtn() + `<button class="btn" id="agreeBtn" disabled onclick="DLG.agree(${d.v})">${S.enabled ? "Accept" : "Accept and turn on"}</button>`, true);
+          case "turnoff":
+            return dlg("Turn the directory off?", `<p>The directory pages disappear for everyone. Profiles stay stored, retention purges keep running and the organization export still works.</p><p class="small muted">Deleting all directory data is a separate action.${lapsed() ? " <b>While lapsed, you can't turn it back on.</b>" : ""}</p>`, cancelBtn() + `<button class="btn" onclick="S.enabled=false;A.go('/organization');A.toast('Directory off. Data kept.')">Turn off</button>`);
+          case "deldir":
+            return dlg("Delete all directory data?", `<div class="box danger">Deletes every profile, photo, department and location list, permission table and read log of ${ORG}. Employments, bookings and attendance stay.</div><label class="f">Type ${ORG} to confirm</label><input style="width:100%">`, cancelBtn() + `<button class="btn danger" onclick="A.close();A.toast('Prototype: nothing deleted')">Delete</button>`);
+          case "delorg":
+            return dlg(`Delete ${ORG}?`, `<div class="box danger">Deletes the organization, every group, booking, attendance record and profile.</div><p>Want a copy first? <a onclick="A.close();A.go('/organization');setTimeout(()=>document.querySelector('.card .btn.out')&&0,0)">Export organization data</a>. Deleting doesn't wait for the export, and it removes any export still stored.</p><label class="f">Type ${ORG} to confirm</label><input style="width:100%">`, cancelBtn() + `<button class="btn danger" onclick="A.close();A.toast('Prototype: nothing deleted')">Delete organization</button>`);
+          case "history": {
+            const rows = S.profileHistory[r.id] || [];
+            return `<div class="ov" onclick="if(event.target===this)A.close()"><div class="drawer"><div class="row"><h3 class="grow">${t("history")} · ${r.name}</h3><button class="x" onclick="A.close()">×</button></div>
+              <p class="small muted">Who changed which fields, when, and through which audience. Never the values.</p>
+              ${rows.length ? `<table class="t"><tbody>${rows.map((h) => `<tr><td class="small muted" style="white-space:nowrap;vertical-align:top">${h.at}</td><td><b>${h.by === "retention" ? `<span class="chip">retention</span>` : h.by}</b>${h.via ? ` <span class="small muted">as ${h.via}</span>` : ""}<div class="small">${h.sec}: ${h.fields}</div></td></tr>`).join("")}</tbody></table>` : `<p class="muted">No changes yet.</p>`}</div></div>`;
+          }
+        }
+        return "";
+      }
+      const DLG = {
+        end(id) {
+          const r = P[id]; const date = document.getElementById("enddate").value || TODAY;
+          r.ended = date;
+          openPeople().forEach((p) => { if (p.card.reportsTo === id) p.card.reportsTo = ""; });
+          r.roles = []; r.orgAdmin = false; r.groups = [];
+          SECTIONS.filter((s) => S.ret[s] === "end").forEach((s) => (r.removed[s] = date));
+          A.go("/person/" + id); A.toast("Ended. The record moved to the Former list.");
+        },
+        type(id) {
+          const r = P[id];
+          if (r.type === "employee") { r.type = "external"; r.job.contract = ""; r.job.wt = ""; r.job.probation = ""; r.personal = PE(); }
+          else r.type = "employee";
+          A.close(); A.toast("Type changed");
+        },
+        copy(id) {
+          const r = P[id], pr = P[r.prevSpell];
+          document.querySelectorAll(".cp:checked").forEach((el) => {
+            const s = el.value;
+            if (s === "photo") r.photo = pr.photo;
+            if (s === "personal") r.personal = { ...pr.personal };
+            if (s === "contact") r.contact = JSON.parse(JSON.stringify(pr.contact));
+          });
+          A.close(); A.toast("Copied into this spell");
+        },
+        hold(id) { const r = P[id]; r.hold = r.hold ? null : { by: viewer().name, at: TODAY }; A.close(); A.toast(r.hold ? "Hold set" : "Hold lifted"); },
+        exp(id) {
+          S.exports[id] = { state: "prep" }; render();
+          S.readLog.unshift({ at: TODAY + " " + nowTime(), reader: viewer().name, person: P[id].name, secs: "all held sections", aud: t("aud_" + (viewer().owner ? "owner" : viewer().orgAdmin ? "orgAdmin" : "self")), kind: "export" });
+          setTimeout(() => { S.exports[id] = { state: "ready", until: plus7() }; render(); }, 1500);
+        },
+        erase(id) { const r = P[id]; if (document.getElementById("erasename").value.trim() !== r.name) { A.toast("Type the exact name"); return; } r.erased = true; A.go(r.ended ? "/directory/former" : "/directory"); A.toast("Erased"); },
+        invite(id) { P[id].invite = "sent"; P[id].email = document.getElementById("invemail").value; A.close(); A.toast("Invite sent"); },
+        add() {
+          const name = document.getElementById("addname").value.trim(); if (!name) { A.toast("A name is required"); return; }
+          const id = "n" + Date.now();
+          const p = person({ id, name, email: document.getElementById("addemail").value.trim(), account: "none", start: TODAY, type: document.querySelector('[name="addtype"]:checked').value, card: { title: "", dept: "", loc: "", reportsTo: "" } });
+          if (document.getElementById("addinv").checked && p.email) p.invite = "sent";
+          PEOPLE.push(p); P[id] = p; A.go("/person/" + id + "/edit"); A.toast("Added. Fill in the rest.");
+        },
+        agree(v) { S.agreement = { v, by: viewer().name, at: TODAY }; S.enabled = true; S.agreementV2 = false; A.close(); A.toast(`Agreement version ${v} accepted`); },
+      };
+
+      // ---------- prototype bar ----------
+      function pageVariantKey() {
+        if (S.route === "/directory") return "dv";
+        if (/^\/person\/[^/]+$/.test(S.route)) return "pv";
+        return null;
+      }
+      const VNAMES = { dv: { A: "Cards", B: "Table" }, pv: { A: "One page + rail", B: "Header + tabs" } };
+      function protoBar() {
+        const vk = pageVariantKey();
+        const jumps = [
+          ["/directory", "Directory"], ["/directory/former", "Former list"], ["/person/eva", "Profile · Eva (full)"], ["/person/eva/edit", "Edit · Eva"],
+          ["/person/hana", "Profile · Hana (rejoined)"], ["/person/jonas", "Profile · Jonas (external)"], ["/person/petra", "Profile · Petra (no account)"],
+          ["/person/karel", "Profile · Karel (account deleted)"], ["/person/ondrej", "Profile · Ondřej (former)"], ["/person/filip", "Profile · Filip (former, hold)"], ["/person/veronika", "Profile · Veronika (purged)"],
+          ["/directory/settings/permissions", "Permission table"], ["/directory/settings/roles", "Directory roles"], ["/directory/settings/retention", "Retention"],
+          ["/directory/settings/lists", "Departments & locations"], ["/directory/settings/readlog", "Read log"], ["/directory/settings/general", "General (notice)"], ["/organization", "Organization (enable, export)"],
+        ];
+        return `<div class="proto"><span class="tag">PROTOTYPE</span>
+          <label>viewer <select onchange="A.set('role',this.value)">${Object.entries(VIEWERS).map(([k, id]) => `<option value="${k}" ${S.role === k ? "selected" : ""}>${D.en["aud_" + k]} · ${P[id].name}</option>`).join("")}</select></label>
+          <label>plan <select onchange="A.set('plan',this.value)"><option value="ent" ${S.plan === "ent" ? "selected" : ""}>Enterprise</option><option value="lapsed" ${S.plan === "lapsed" ? "selected" : ""}>Pro, lapsed (holds data)</option><option value="none" ${S.plan === "none" ? "selected" : ""}>Pro, never had it</option></select></label>
+          <label>go <select onchange="A.go(this.value)"><option value="">jump to…</option>${jumps.map(([p, l]) => `<option value="${p}">${l}</option>`).join("")}</select></label>
+          ${vk ? `<button onclick="A.variant(-1)">←</button><span>${S[vk]} · ${VNAMES[vk][S[vk]]}</span><button onclick="A.variant(1)">→</button>` : ""}
+          <label><input type="checkbox" ${S.ann ? "checked" : ""} onchange="A.set('ann',this.checked)"> notes</label>
+        </div>`;
+      }
+
+      // ---------- render ----------
+      function page() {
+        const r = S.route.split("/").filter(Boolean);
+        if (r[0] === "organization") return pageOrganization();
+        if (r[0] === "person") return r[2] === "edit" ? pageEdit(r[1]) : pageProfile(r[1]);
+        if (r[0] === "directory" && r[1] === "former") return pageFormer();
+        if (r[0] === "directory" && r[1] === "settings") {
+          return { permissions: pagePermissions, roles: pageRoles, retention: pageRetention, lists: pageLists, readlog: pageReadLog, general: pageGeneral }[r[2]]?.() ?? pagePermissions();
+        }
+        return pageDirectory();
+      }
+      function render() {
+        const ae = document.activeElement;
+        const focusId = ae && ae.id;
+        const sel = ae && "selectionStart" in ae ? ae.selectionStart : null;
+        document.getElementById("app").innerHTML = shell(page()) + dialog() + protoBar() + (S.toast ? `<div class="toast">${S.toast}</div>` : "");
+        if (focusId) { const el = document.getElementById(focusId); if (el) { el.focus(); if (sel != null && el.setSelectionRange) try { el.setSelectionRange(sel, sel); } catch (e) {} } }
+      }
+      document.addEventListener("keydown", (e) => {
+        if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) return;
+        if (e.key === "ArrowLeft") A.variant(-1);
+        if (e.key === "ArrowRight") A.variant(1);
+        if (e.key === "Escape") A.close();
+      });
+      window.addEventListener("popstate", () => { parseHash(); render(); });
+      parseHash();
+      logReadIfNeeded();
+      render();
+    </script>
+  </body>
+</html>
