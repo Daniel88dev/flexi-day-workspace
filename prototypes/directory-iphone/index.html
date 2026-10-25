@@ -289,7 +289,7 @@
           reportsHidden: "Nadřízený, kterého nevidíte",
         },
       };
-      const t = (k, ...a) => { const v = D[S.lang][k] ?? D.en[k] ?? k; return typeof v === "function" ? v(...a) : v; };
+      const t = (k, ...a) => { const v = D[S.lang][k] ?? D.en[k] ?? k; const out = typeof v === "function" ? v(...a) : v; return typeof out === "string" ? out.replace(/Acme s\.r\.o\./g, orgName()) : out; };
 
       // ---------- fake data (from prototype/directory-web) ----------
       const TODAY = "2026-10-25";
@@ -311,7 +311,7 @@
       const E = () => ({ phone: "", email: "", ec: [{ name: "", phone: "" }, { name: "", phone: "" }] });
       const PE = () => ({ a1: "", a2: "", postal: "", city: "", region: "", country: "", dob: "" });
       const J = (o = {}) => ({ legal: "", number: "", start: "", probation: "", leaving: "", contract: "", wt: "", ...o });
-      const person = (o) => ({ type: "employee", account: "bound", ended: null, groups: [], manages: [], roles: [], orgAdmin: false, owner: false, hold: null, photo: null, acct: null, removed: {}, rejoinedAs: null, work: { email: "", phone: "" }, job: J(), contact: E(), personal: PE(), ...o });
+      const person = (o) => ({ org: "acme", type: "employee", account: "bound", ended: null, groups: [], manages: [], roles: [], orgAdmin: false, owner: false, hold: null, photo: null, acct: null, removed: {}, rejoinedAs: null, work: { email: "", phone: "" }, job: J(), contact: E(), personal: PE(), ...o });
       const PEOPLE = [
         person({ id: "richard", name: "Richard Kolář", email: "richard@acme.cz", owner: true, start: "2019-01-07", photo: 40, acct: 200, card: { title: "Managing director", dept: "fin", loc: "prg", reportsTo: "" }, work: { email: "richard.kolar@acme.cz", phone: "+420 602 111 000" }, job: J({ number: "A-0001", start: "2019-01-07", contract: "permanent", wt: "full" }) }),
         person({ id: "martin", name: "Martin Svoboda", email: "martin.svoboda@gmail.com", orgAdmin: true, start: "2020-05-01", acct: 150, card: { title: "Operations manager", dept: "ops", loc: "prg", reportsTo: "richard" }, work: { email: "martin.svoboda@acme.cz", phone: "+420 602 111 020" }, job: J({ number: "A-0007", start: "2020-05-01", contract: "permanent", wt: "full" }) }),
@@ -332,6 +332,16 @@
         person({ id: "filip", name: "Filip Beneš", email: "filip.benes@email.cz", account: "deleted", start: "2017-03-01", ended: "2025-12-31", hold: { by: "Martin Svoboda", at: "2026-02-03" }, card: { title: "Accountant", dept: "fin", loc: "prg", reportsTo: "" }, work: { email: "filip.benes@acme.cz", phone: "+420 602 111 080" }, job: J({ number: "A-0002", start: "2017-03-01", contract: "permanent", wt: "full" }), contact: { phone: "+420 603 444 333", email: "", ec: [{ name: "", phone: "" }, { name: "", phone: "" }] }, personal: { a1: "Masarykova 8", a2: "", postal: "301 00", city: "Plzeň", region: "Plzeňský kraj", country: "CZ", dob: "1979-05-30" } }),
         person({ id: "hana0", name: "Hana Marková", email: "hana.markova@email.cz", start: "2025-04-01", ended: "2026-03-31", photo: 60, rejoinedAs: "hana", removed: { workContact: "2026-04-30", contact: "2026-04-30" }, card: { title: "Seasonal support agent", dept: "sup", loc: "brn", reportsTo: "" }, job: J({ number: "A-0047", start: "2025-04-01", contract: "fixed", wt: "full" }), personal: { a1: "Cejl 40", a2: "byt 12", postal: "602 00", city: "Brno", region: "Jihomoravský kraj", country: "CZ", dob: "2001-09-09" } }),
       ];
+      // second organization: Lucie (HR at Acme) is a plain colleague here
+      PEOPLE.push(
+        person({ id: "lucie_h", org: "holding", name: "Lucie Králová", email: "lucie.kralova@acme.cz", start: "2024-01-01", photo: 330, card: { title: "Board secretary", dept: "fin", loc: "prg", reportsTo: "richard_h" }, work: { email: "lucie@kolar-holding.cz", phone: "+420 602 900 010" } }),
+        person({ id: "richard_h", org: "holding", name: "Richard Kolář", email: "richard@acme.cz", owner: true, start: "2015-03-01", photo: 40, card: { title: "Chairman of the board", dept: "fin", loc: "prg", reportsTo: "" }, work: { email: "richard@kolar-holding.cz", phone: "+420 602 900 001" } }),
+        person({ id: "jana_h", org: "holding", name: "Jana Kolářová", email: "jana@kolar-holding.cz", start: "2016-09-01", acct: 20, card: { title: "Finance director", dept: "fin", loc: "prg", reportsTo: "richard_h" }, work: { email: "jana@kolar-holding.cz", phone: "+420 602 900 002" } }),
+        person({ id: "milan_h", org: "holding", name: "Milan Beran", email: "", account: "none", start: "2023-05-01", card: { title: "Property manager", dept: "ops", loc: "brn", reportsTo: "jana_h" }, work: { email: "milan@kolar-holding.cz", phone: "" } }),
+      );
+      const ORGS = { acme: "Acme s.r.o.", holding: "Kolář Holding a.s." };
+      const orgName = () => ORGS[S.org] || ORGS.acme;
+      const multiOrg = () => S.role === "hr";
       const P = Object.fromEntries(PEOPLE.map((p) => [p.id, p]));
       const VIEWERS = { self: "eva", colleague: "jakub", external: "jonas", groupAdmin: "marketa", hr: "lucie", leadership: "tomas", orgAdmin: "martin", owner: "richard" };
       const VIEWER_LABEL = { self: "Self (Eva)", colleague: "Colleague (Jakub)", external: "External (Jonas)", groupAdmin: "Group admin (Markéta)", hr: "HR (Lucie)", leadership: "Leadership (Tomáš)", orgAdmin: "Org admin (Martin)", owner: "Owner (Richard)" };
@@ -347,13 +357,13 @@
 
       // ---------- state ----------
       const S = {
-        role: "hr", plan: "ent", theme: "light", lang: "en", read: "live", listV: "rows", profV: "tabs", upsell: false,
+        role: "hr", org: "acme", plan: "ent", theme: "light", lang: "en", read: "live", upsell: false,
         stack: [{ r: "dashboard" }], sheet: null, revealed: {}, ptab: "overview", q: "", f: { dept: "", loc: "", type: "" }, seg: "current",
         log: [], bg: false, toast: null, signedOut: false, retrying: false,
       };
 
       // ---------- permission logic (same as the web prototype) ----------
-      const viewer = () => P[VIEWERS[S.role]];
+      const viewer = () => (S.org === "holding" ? P.lucie_h : P[VIEWERS[S.role]]);
       const isAdmin = (v) => v.owner || v.orgAdmin;
       const hrish = (v) => v.owner || v.orgAdmin || v.roles.includes("hr");
       const reaches = (v, r) => v.manages.length > 0 && !r.ended && r.id !== v.id && r.groups.some((g) => v.manages.includes(g));
@@ -521,7 +531,7 @@
       function filtered() {
         const v = viewer();
         const q = S.q.trim().toLowerCase();
-        let list = S.seg === "former" ? PEOPLE.filter((p) => p.ended) : PEOPLE.filter((p) => !p.ended && reads(v, p, "card"));
+        let list = S.seg === "former" ? PEOPLE.filter((p) => p.org === S.org && p.ended) : PEOPLE.filter((p) => p.org === S.org && !p.ended && reads(v, p, "card"));
         list = list.filter((p) => !q || p.name.toLowerCase().includes(q) || p.card.title.toLowerCase().includes(q));
         if (S.f.dept) list = list.filter((p) => p.card.dept === S.f.dept);
         if (S.f.loc) list = list.filter((p) => p.card.loc === S.f.loc);
@@ -537,7 +547,7 @@
         const chip = (k, label, val, name) => `<span class="chip ${val ? "on" : ""}" onclick="S.sheet='filter:${k}';render()">${val ? name : label}<i class="ph-bold ph-caret-down" style="font-size:11px"></i></span>`;
         const typeName = S.f.type === "external" ? t("externals") : t("employees");
         const head = `<div style="padding-top:2px">
-          <h1 class="h1">${t("directory")}</h1><div style="color:var(--muted);font-size:14px;margin:2px 0 12px">Acme s.r.o.</div>
+          <h1 class="h1">${t("directory")}</h1>${multiOrg() ? `<div onclick="S.sheet='org';render()" style="color:var(--primary);font-weight:600;font-size:14.5px;margin:2px 0 12px;cursor:pointer;display:inline-flex;align-items:center;gap:4px">${orgName()}<i class="ph-bold ph-caret-down" style="font-size:12px"></i></div>` : `<div style="color:var(--muted);font-size:14px;margin:2px 0 12px">${orgName()}</div>`}
           ${lapseBanner()}
           ${segRow}
           <div class="search"><i class="ph ph-magnifying-glass" style="font-size:18px"></i><input id="q" placeholder="${t("search")}" value="${S.q.replace(/"/g, "&quot;")}" oninput="S.q=this.value;renderKeep()"/>${S.q ? `<i class="ph-fill ph-x-circle" style="cursor:pointer" onclick="S.q='';render()"></i>` : ""}</div>
@@ -550,7 +560,7 @@
           const list = filtered();
           if (!list.length) body = `<div style="text-align:center;padding:48px 16px;color:var(--muted)"><i class="ph ph-magnifying-glass" style="font-size:34px;color:var(--faint)"></i><div style="font-weight:600;color:var(--text);margin:8px 0 4px">${t("noMatch")}</div><button class="btn ghost" onclick="S.q='';S.f={dept:'',loc:'',type:''};render()">${t("clearFilters")}</button></div>`;
           else if (S.seg === "former") body = formerList(list);
-          else body = `<div class="label" style="padding-top:14px"><span>${t("nPeople", list.length)}</span></div>` + (S.listV === "rows" ? rowsList(list) : cardsList(list));
+          else body = `<div class="label" style="padding-top:14px"><span>${t("nPeople", list.length)}</span></div>` + rowsList(list);
         }
         return `<div class="screen">${stackHead("")}<div class="scroll" id="dirscroll">${head}${body}</div></div>`;
       }
@@ -558,10 +568,6 @@
       function rowsList(list) {
         const v = viewer();
         return `<div class="card">${list.map((r) => `<div class="row tap" onclick="push({r:'person',id:'${r.id}'})">${avatar(r, v, 40)}<div class="kv"><div class="v" style="font-size:15.5px">${r.name}</div><div class="k" style="font-size:13px;color:var(--muted)">${[r.card.title, deptName(r.card.dept)].filter(Boolean).join(" · ")}</div><div style="display:flex;gap:4px;margin-top:3px;flex-wrap:wrap">${markers(r, v)}</div></div><i class="ph ph-caret-right chev"></i></div>`).join("")}</div>`;
-      }
-      function cardsList(list) {
-        const v = viewer();
-        return `<div class="grid2">${list.map((r) => `<div class="pcard" onclick="push({r:'person',id:'${r.id}'})">${avatar(r, v, 64)}<div class="n">${r.name}</div><div class="s">${r.card.title}</div><div class="s" style="color:var(--faint)">${locName(r.card.loc)}</div><div class="ch">${markers(r, v, true)}</div></div>`).join("")}</div>`;
       }
       function formerList(list) {
         const v = viewer();
@@ -670,11 +676,7 @@
         const lb = lapsed() ? lapseBanner() + '<div class="gap-s"></div>' : "";
         let body = "";
         const blocks = { overview: () => overviewInner(r, v), job: () => jobInner(r), contact: () => contactInner(r), personal: () => personalInner(r), record: () => recordInner(r, v) };
-        if (S.profV === "tabs") {
-          const icon = (k) => (sensitive(k) && !self ? '<i class="ph-fill ph-lock-simple"></i>' : "");
-          const tabRow = tabs.length > 1 ? `<div class="tabs">${tabs.map((k) => `<button class="${S.ptab === k ? "on" : ""}" onclick="S.ptab='${k}';render()">${icon(k)}${t("tab_" + k)}</button>`).join("")}</div><div class="gap-s"></div><div style="height:8px"></div>` : "";
-          body = tabRow + blocks[S.ptab]();
-        } else body = tabs.map((k) => blocks[k]()).join("");
+        body = tabs.map((k) => blocks[k]()).join("");
         return `<div class="screen">${stackHead("", { backLabel: S.stack.length > 2 && S.stack[S.stack.length - 2].r === "person" ? P[S.stack[S.stack.length - 2].id].name.split(" ")[0] : t("directory") })}<div class="scroll">${header}${lb}${selfHint}${qa}${body}</div></div>`;
       }
 
@@ -684,6 +686,10 @@
         const cur = S.f[k];
         const row = (id, label) => `<div class="mrow" style="color:var(--text)" onclick="S.f.${k}='${id}';S.sheet=null;render()"><span style="flex:1">${label}</span>${cur === id ? '<i class="ph-bold ph-check" style="color:var(--primary)"></i>' : ""}</div>`;
         return `<div class="sheetwrap"><div class="scrimbg" onclick="S.sheet=null;render()"></div><div class="sheet"><div class="grab"></div><div class="mlabel">${t(k)}</div>${row("", t("any"))}${opts.map(([id, l]) => row(id, l)).join("")}</div></div>`;
+      }
+      function orgSheet() {
+        const row = (id) => `<div class="mrow" style="color:var(--text)" onclick="S.org='${id}';S.seg='current';S.q='';S.f={dept:'',loc:'',type:''};S.revealed={};S.sheet=null;render()"><span style="flex:1">${ORGS[id]}</span>${S.org === id ? '<i class="ph-bold ph-check" style="color:var(--primary)"></i>' : ""}</div>`;
+        return `<div class="sheetwrap"><div class="scrimbg" onclick="S.sheet=null;render()"></div><div class="sheet"><div class="grab"></div><div class="mlabel">${S.lang === "cs" ? "Organizace" : "Organization"}</div>${Object.keys(ORGS).map(row).join("")}</div></div>`;
       }
       function actionSheet(kind, value, sens) {
         const v = decodeURIComponent(value);
@@ -699,8 +705,8 @@
       // ---------- side panel: notes and state ----------
       const NOTES = {
         dashboard: ["The tab bar keeps its five slots (Dashboard, Requests, clock, My attendance, More). The directory goes behind More, in a new People section, the same name as the web's sidebar section.", "Free and Pro: no People section at all, unless the upsell switch in the bar is on and the viewer is owner or org admin."],
-        directory: ["Pushed over the tab bar like Groups or Settings, with its own back button.", "Live read every time it opens, and again on pull to refresh and on foreground. Nothing goes to the local store.", "Search covers name and job title. Filters: department, location, type. Same as the web.", "Current / Former only for Owner, Org admin and HR.", "Markers: everyone sees External. No account, Invite sent and Account deleted only for Owner, Org admin and HR.", "No leave or attendance status."],
-        person: ["Header holds the photo (Profile photo, then Account picture, then initials), name, title and markers. Tap a photo for the full size.", "Call / Message / Email buttons appear only when Work contact is readable.", "Sections the viewer can't read are absent. With only Overview left, the tab row disappears.", "Contact and Personal start closed for anyone but the person. Show fetches that one section live and writes one read-log row. Leaving the person (back, or tapping Reports to) closes them.", "Opened values live only in component memory: no query cache, no expo-sqlite. The app-switcher snapshot is covered while one is open.", "Reports to opens that person's profile. Read only. No edit controls anywhere."],
+        directory: ["Pushed over the tab bar like Groups or Settings, with its own back button.", "Live read every time it opens, and again on pull to refresh and on foreground. Nothing goes to the local store.", "Search covers name and job title. Filters: department, location, type. Same as the web.", "Current / Former only for Owner, Org admin and HR.", "Rows only (settled). The organization name under the title is a picker only for a viewer in more than one directory organization: HR (Lucie) here, who is a plain colleague at Kolář Holding a.s.", "Markers: everyone sees External. No account, Invite sent and Account deleted only for Owner, Org admin and HR.", "No leave or attendance status."],
+        person: ["Header holds the photo (Profile photo, then Account picture, then initials), name, title and markers. Tap a photo for the full size.", "Call / Message / Email buttons appear only when Work contact is readable.", "One scroll (settled): sections in the web's tab order, Overview (Card, Work contact), Job, Contact, Personal, Record. Sections the viewer can't read are absent.", "Contact and Personal start closed for anyone but the person. Show fetches that one section live and writes one read-log row. Leaving the person (back, or tapping Reports to) closes them.", "Opened values live only in component memory: no query cache, no expo-sqlite. The app-switcher snapshot is covered while one is open.", "Reports to opens that person's profile. Read only. No edit controls anywhere."],
         upsell: ["Only shown with the upsell switch on, for owner and org admins on Free or Pro. The phone has no billing screens, so the button opens the web."],
       };
       function side() {
@@ -722,14 +728,12 @@
       // ---------- control bar ----------
       function bar() {
         const g = (label, key, opts) => `<div class="g"><span>${label}</span>${opts.map(([v, l]) => `<button class="${S[key] === v ? "on" : ""}" onclick="S['${key}']=${typeof v === "boolean" ? v : `'${v}'`};S.revealed={};render()">${l}</button>`).join("")}</div>`;
-        return `<div class="g"><span>Viewer</span><select onchange="S.role=this.value;S.revealed={};S.seg='current';render()">${Object.keys(VIEWERS).map((k) => `<option value="${k}" ${S.role === k ? "selected" : ""}>${VIEWER_LABEL[k]}</option>`).join("")}</select></div>
+        return `<div class="g"><span>Viewer</span><select onchange="S.role=this.value;S.org='acme';S.revealed={};S.seg='current';render()">${Object.keys(VIEWERS).map((k) => `<option value="${k}" ${S.role === k ? "selected" : ""}>${VIEWER_LABEL[k]}</option>`).join("")}</select></div>
           ${g("Plan", "plan", [["ent", "Enterprise"], ["lapsed", "Lapsed"], ["none", "Free/Pro"]])}
           ${g("Upsell", "upsell", [[false, "off"], [true, "on"]])}
           ${g("Theme", "theme", [["light", "Light"], ["dark", "Dark"]])}
           ${g("Lang", "lang", [["en", "EN"], ["cs", "CS"]])}
-          ${g("Read", "read", [["live", "Live"], ["loading", "Loading"], ["error", "Offline"], ["slow", "Slow Show"], ["showfail", "Show fails"]])}
-          ${g("List", "listV", [["rows", "Rows"], ["cards", "Cards"]])}
-          ${g("Profile", "profV", [["tabs", "Tabs"], ["scroll", "One scroll"]])}`;
+          ${g("Read", "read", [["live", "Live"], ["loading", "Loading"], ["error", "Offline"], ["slow", "Slow Show"], ["showfail", "Show fails"]])}`;
       }
 
       // ---------- render ----------
@@ -746,6 +750,7 @@
         else screen = scrDashboard(fr.r);
         let sheet = "";
         if (S.sheet === "more") sheet = moreSheet();
+        else if (S.sheet === "org") sheet = orgSheet();
         else if (S.sheet && S.sheet.startsWith("filter:")) sheet = filterSheet(S.sheet.slice(7));
         else if (S.sheet && S.sheet.startsWith("photo:")) sheet = photoViewer(S.sheet.slice(6));
         else if (S.sheet) { const [k, v, s] = S.sheet.split(":"); sheet = actionSheet(k, v, s); }
@@ -764,7 +769,7 @@
       // ---------- hash: #role=hr&plan=ent&theme=dark&lang=cs&go=person/eva&tab=contact&show=contact&sheet=more&seg=former ----------
       (function fromHash() {
         const p = new URLSearchParams(location.hash.slice(1));
-        for (const k of ["role", "plan", "theme", "lang", "read", "listV", "profV", "seg", "q"]) if (p.get(k)) S[k] = p.get(k);
+        for (const k of ["role", "org", "plan", "theme", "lang", "read", "seg", "q"]) if (p.get(k)) S[k] = p.get(k);
         if (p.get("upsell") === "1") S.upsell = true;
         for (const k of ["dept", "loc", "type"]) if (p.get(k)) S.f[k] = p.get(k);
         const go = p.get("go");
