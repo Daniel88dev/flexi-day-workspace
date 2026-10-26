@@ -199,6 +199,11 @@ non-obvious: a subtle gotcha, a non-local invariant, a deliberate workaround. Le
 it does. **Exception:** API documentation is generated, so JSDoc `@openapi` blocks on backend routes
 stay complete and current.
 
+## Fenro
+
+Work comes from Fenro tasks; use the `fenro-task` skill to pick one and work it. Repository, space,
+grilling mode and labels: see `docs/agents/fenro.md`.
+
 ## Agent skills
 
 - **Issue tracker** — agent work lives in fenro tasks (`T-12`) through the `fenro-prod` MCP server,
