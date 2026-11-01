@@ -25,35 +25,34 @@ for d in . flexi-day flexi-day-be flexi-day-emails flexi-day-rn; do echo "== $d"
 - Note the current branch per repo. If a repo is already on a feature branch, reuse it at gate 6
   instead of branching again.
 - Read the actual diff before anything else — you cannot review or test what you have not read:
-  `git -C <repo> --no-pager diff -- . ':!package-lock.json'`, plus read any untracked new files.
+  `git -C <repo> --no-pager diff -- . ':!pnpm-lock.yaml'`, plus read any untracked new files.
 
 ## Gate 1 — checks
 
-Run from the **workspace root**; these scripts delegate into the sub-repos. Use Node 24 (`.nvmrc`) —
-a different npm major rewrites `package-lock.json` and breaks `npm ci` in CI.
+Run from the **workspace root**; these scripts delegate into the sub-repos. Use Node 24 (`.nvmrc`).
 
-| Repo                | Checks (in order)                                                                          |
-| ------------------- | ------------------------------------------------------------------------------------------ |
-| `flexi-day` (FE)    | `npm run format:check:fe` · `npm run lint:fe` · `npm run test:fe` · `npm run build:fe`     |
-| `flexi-day-be` (BE) | `npm run format:check:be` · `npm run lint:be` · `npm run build:be` · `npm run test:be`     |
-| `flexi-day-emails`  | `npm run format:check:emails` · `npm run typecheck:emails` · `npm run build:emails`        |
-| `flexi-day-rn`      | `npm run format:check:rn` · `npm run lint:rn` · `npm run typecheck:rn` · `npm run test:rn` |
-| workspace root      | `npm run check` (prettier · eslint · shellcheck · actionlint · link check)                 |
+| Repo                | Checks (in order)                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| `flexi-day` (FE)    | `pnpm run format:check:fe` · `pnpm run lint:fe` · `pnpm run test:fe` · `pnpm run build:fe`     |
+| `flexi-day-be` (BE) | `pnpm run format:check:be` · `pnpm run lint:be` · `pnpm run build:be` · `pnpm run test:be`     |
+| `flexi-day-emails`  | `pnpm run format:check:emails` · `pnpm run typecheck:emails` · `pnpm run build:emails`         |
+| `flexi-day-rn`      | `pnpm run format:check:rn` · `pnpm run lint:rn` · `pnpm run typecheck:rn` · `pnpm run test:rn` |
+| workspace root      | `pnpm run check` (prettier · eslint · shellcheck · actionlint · link check)                    |
 
 Run the independent ones in parallel (one Bash call each, same block). Notes:
 
 - **`format:check` is a CI gate, and `lint` does not cover it.** `lint` is eslint; prettier is the
   separate `format:check` job, and it fails the build on its own. The `Write|Edit` hooks format as
   you go, but a file written through Bash — `sed`, a heredoc, a `python` one-liner — never triggers
-  them. Fix a failure with `npm run format:fe|be|emails|rn`, never by hand.
+  them. Fix a failure with `pnpm run format:fe|be|emails|rn`, never by hand.
 
 - **`build:fe` / `build:be` are the typecheck.** The frontend has no `typecheck` script — `next build`
   does it; the backend's `build` _is_ `tsc`. For a fast inner loop only:
-  `npm --prefix flexi-day exec -- tsc --noEmit`. The build still has to pass before gate 2.
-- **Backend e2e**: if Postgres is up, also run `npm --prefix flexi-day-be run test:e2e` (uses
+  `pnpm -C flexi-day exec tsc --noEmit`. The build still has to pass before gate 2.
+- **Backend e2e**: if Postgres is up, also run `pnpm -C flexi-day-be run test:e2e` (uses
   `.env.e2e.test`, self-skips via `test:e2e:check` when no DB). CI runs it, so a failure here is a
   failure.
-- **Dependency advisories are not a gate.** No CI runs `npm audit` — it resolves against a live
+- **Dependency advisories are not a gate.** No CI runs `pnpm audit` — it resolves against a live
   advisory feed, so it fails on commits it passed the day before. Dependabot's alerts and security
   PRs cover this instead. Do not add an audit step back into a PR-blocking job.
 - `flexi-day-emails` `build` also _verifies_ templates: it fails when a Handlebars `{{token}}` got
@@ -75,7 +74,7 @@ Review the uncommitted + unpushed changes in /Users/danielhrynusiw/WebstormProje
 
 Read the change with:
   git -C <abs repo path> --no-pager diff --stat
-  git -C <abs repo path> --no-pager diff -- . ':!package-lock.json'
+  git -C <abs repo path> --no-pager diff -- . ':!pnpm-lock.yaml'
   git -C <abs repo path> status --porcelain      # read every untracked file in full
 Then read the surrounding files — the diff alone hides broken callers and missed cases.
 Read <repo>/CLAUDE.md and CLAUDE.local.md first; repo conventions are part of correctness.
@@ -111,11 +110,11 @@ If you find nothing that meets that bar, say "no findings" — do not pad the li
 
 Invoke the **`ui-test` skill** and follow it — it is the authoritative loop. In short:
 
-1. `npm run stack:status`; start what is down the way `ui-test` describes: `preview_start`
+1. `pnpm run stack:status`; start what is down the way `ui-test` describes: `preview_start`
    (`{name: "flexi-be"}`, `{name: "flexi-fe"}` from `.claude/launch.json`) for browser work, or
-   `npm run stack:start` in a cloud session. Postgres: see `/dev-up`. `npm run db:migrate` if this
+   `pnpm run stack:start` in a cloud session. Postgres: see `/dev-up`. `pnpm run db:migrate` if this
    change touched the schema.
-2. `npm run dev:scenario` to seed, then open
+2. `pnpm run dev:scenario` to seed, then open
    `http://localhost:3000/dev-sign-in/?email=owner@dev.local` for an authenticated dashboard.
 3. Drive the **changed feature** end to end, plus one pass over the dashboard and requests pages for
    regressions. Assert with `read_page` (`browser_snapshot` in the cloud), not screenshots.

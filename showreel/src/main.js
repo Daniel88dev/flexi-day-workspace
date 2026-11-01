@@ -27,7 +27,7 @@ async function boot() {
   const missing = FACES.filter((_, i) => loaded[i].length === 0);
   // A fallback font would render without complaint, so refuse to start instead.
   if (missing.length)
-    throw new Error(`Brand fonts missing (${missing.join(", ")}): run npm install`);
+    throw new Error(`Brand fonts missing (${missing.join(", ")}): run pnpm install`);
   await document.fonts.ready;
   const stage = document.getElementById("stage");
   vblurFilter(stage);

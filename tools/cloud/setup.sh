@@ -114,14 +114,12 @@ dep_dirs() {
   [ "$WITH_RN" != 1 ] || echo "$WORKSPACE/flexi-day-rn"
 }
 
-# The repos move from npm to pnpm one at a time, and the image ships no pnpm. One pnpm goes on
-# PATH, so every pnpm repo has to pin the same version.
+# The image ships no pnpm. One pnpm goes on PATH, so every repo has to pin the same version.
 ensure_pnpm() {
   local dir pin v version="" pinned_by=""
   while read -r dir; do
-    [ -f "$dir/pnpm-lock.yaml" ] || continue
     pin=$(node -p "require(process.argv[1]).packageManager || ''" "$dir/package.json")
-    [[ "$pin" == pnpm@* ]] || die "$(basename "$dir") has pnpm-lock.yaml but no pnpm@ packageManager pin"
+    [[ "$pin" == pnpm@* ]] || die "$(basename "$dir") has no pnpm@ packageManager pin"
     v=${pin#pnpm@}
     v=${v%%+*}
     if [ -z "$version" ]; then
@@ -131,10 +129,9 @@ ensure_pnpm() {
       die "$(basename "$dir") pins pnpm $v but $pinned_by pins $version"
     fi
   done < <(dep_dirs)
-  [ -n "$version" ] || return 0
 
-  # Asked from outside the repos, where no packageManager pin makes pnpm report another version.
-  if [ "$(cd "$WORKSPACE" && pnpm -v 2>/dev/null)" = "$version" ]; then
+  # Asked from /, outside every packageManager pin, so pnpm reports its own version.
+  if [ "$(cd / && pnpm -v 2>/dev/null)" = "$version" ]; then
     log "pnpm $version is active"
     return
   fi
@@ -152,23 +149,16 @@ ensure_pnpm() {
     ln -sfn "$prefix/bin/$tool" "$LINK_DIR/$tool"
   done
   export PATH="$prefix/bin:$PATH"
-  log "pnpm $(cd "$WORKSPACE" && pnpm -v) linked into $LINK_DIR"
+  log "pnpm $(cd / && pnpm -v) linked into $LINK_DIR"
 }
 
 # Installs only when the repo's lockfile changed since the last install, so a cached container
-# and a resumed session both skip it. pnpm-lock.yaml means pnpm; otherwise npm.
+# and a resumed session both skip it.
 install_deps() {
-  local dir=$1 name stamp lock cmd lock_hash
+  local dir=$1 name stamp lock_hash cmd=(pnpm install --frozen-lockfile)
   name=$(basename "$dir")
   stamp="$dir/node_modules/.flexi-cloud-lock-sha256"
-  if [ -f "$dir/pnpm-lock.yaml" ]; then
-    lock=pnpm-lock.yaml
-    cmd=(pnpm install --frozen-lockfile)
-  else
-    lock=package-lock.json
-    cmd=(npm ci --no-audit --no-fund)
-  fi
-  lock_hash=$(sha256sum "$dir/$lock" | cut -d' ' -f1)
+  lock_hash=$(sha256sum "$dir/pnpm-lock.yaml" | cut -d' ' -f1)
   if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$lock_hash" ]; then
     echo "dependencies current in $name"
     return 0
@@ -206,7 +196,8 @@ ensure_chromium() {
     return
   fi
   log "Installing Chromium for Playwright"
-  (cd "$WORKSPACE" && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD='' npx --no-install playwright install chromium) ||
+  # The playwright that @playwright/mcp depends on, so the browser build matches what it drives.
+  (cd "$WORKSPACE" && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD='' node_modules/@playwright/mcp/node_modules/.bin/playwright install chromium) ||
     echo "warning: Chromium install failed; the Playwright MCP will not start" >&2
 }
 
@@ -338,8 +329,8 @@ ENV
 
 ensure_migrated() {
   log "Applying migrations"
-  (cd "$WORKSPACE/flexi-day-be" && npm run --silent db:migrate)
-  (cd "$WORKSPACE/flexi-day-be" && DATABASE="postgresql://$OS_USER@localhost:5432/$TEST_DB_NAME" npm run --silent db:migrate)
+  (cd "$WORKSPACE/flexi-day-be" && pnpm run --silent db:migrate)
+  (cd "$WORKSPACE/flexi-day-be" && DATABASE="postgresql://$OS_USER@localhost:5432/$TEST_DB_NAME" pnpm run --silent db:migrate)
 }
 
 ensure_node
@@ -351,4 +342,4 @@ ensure_postgres
 ensure_env_files
 ensure_migrated
 
-log "Ready in $(($(date +%s) - started))s. Next: npm run stack:start, then npm run dev:scenario."
+log "Ready in $(($(date +%s) - started))s. Next: pnpm run stack:start, then pnpm run dev:scenario."

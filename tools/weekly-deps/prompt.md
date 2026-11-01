@@ -71,7 +71,7 @@ once that merges.` If the fix goes past the limit, leave the bump out and file a
 ### What Dependabot's `ignore` skips
 
 For every `ignore` entry in `dependabot.yml`, check whether a newer version exists
-(`pnpm outdated`, `npm view <pkg> versions`). Apply patch and minor updates within the limit. A
+(`pnpm outdated`, `pnpm view <pkg> versions`). Apply patch and minor updates within the limit. A
 major update becomes a Fenro task. The repo section below says how this repo moves its pinned
 families.
 
@@ -93,7 +93,7 @@ Never add an override, and never widen one. If a fix needs one, file a Fenro tas
 For every GHSA in `.github/dependency-review-config.yml`:
 
 1. Check whether a release with the fix exists and is past the release-age window (`pnpm audit`,
-   `npm view <pkg> time --json`).
+   `pnpm view <pkg> time --json`).
 2. If it is, update to it within the limit and remove the waiver. If the waiver's comment names a
    Fenro task, add a note there saying it shipped and set the task to `done`.
 3. If not, leave the waiver. Add a note to its Fenro task only when something changed, such as a
@@ -108,12 +108,12 @@ becomes a Fenro task. List what is left in the report.
 ### Bump pnpm
 
 Move the repo to the newest pnpm release that is past the release-age window
-(`pnpm config get minimumReleaseAge` gives minutes; `npm view pnpm time --json` gives publish
+(`pnpm config get minimumReleaseAge` gives minutes; `pnpm view pnpm time --json` gives publish
 times). Dependabot never bumps `packageManager`, and a stale hash breaks Dependabot's own runs. One
 bump edits every place the version is pinned:
 
-- `packageManager` in `package.json`, as `pnpm@<v>+sha512.<hex>`. The hex is the npm tarball's
-  sha512 in hex. Run `npm view pnpm@<v> dist.integrity`, then turn the base64 part after `sha512-`
+- `packageManager` in `package.json`, as `pnpm@<v>+sha512.<hex>`. The hex is the registry tarball's
+  sha512 in hex. Run `pnpm view pnpm@<v> dist.integrity`, then turn the base64 part after `sha512-`
   into hex with
   `node -e 'console.log(Buffer.from(process.argv[1], "base64").toString("hex"))' '<base64>'`.
 - Every other place the repo section lists.
@@ -236,7 +236,7 @@ Templates built with react-email. `build` renders every template and must pass. 
 
 - Dependabot ignores minor and major updates for `expo`, `expo-*`, `@expo/*` and `jest-expo`, and
   every update for `react`, `react-dom` and `react-native`. Those move together with the Expo SDK.
-  Run `npx expo install --check` to see what the current SDK expects, and `npx expo install --fix`
+  Run `pnpm expo install --check` to see what the current SDK expects, and `pnpm expo install --fix`
   to apply it. A new Expo SDK is a major change: file a Fenro task.
 - The pnpm bump also edits the `"pnpm"` version in `eas.json`.
 - The native iOS build and EAS builds stay with the user. Run `typecheck`, `lint`,

@@ -95,7 +95,7 @@ export async function devApi(path, body) {
     });
   } catch (err) {
     throw new DevApiError(
-      `Cannot reach the backend at ${devConfig.apiUrl} (${err.message}). Start it with: npm run dev:be`,
+      `Cannot reach the backend at ${devConfig.apiUrl} (${err.message}). Start it with: pnpm run dev:be`,
       0
     );
   }

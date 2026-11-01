@@ -12,30 +12,30 @@ needs Postgres + backend + a signed-in user. All of it is local-only and gated (
 ## 1. Bring the stack up
 
 ```bash
-npm run stack:status
+pnpm run stack:status
 ```
 
 Start whatever it reports as down. For browser work use the Browser pane: `preview_start` with
 `{name: "flexi-be"}` and `{name: "flexi-fe"}`, both defined in `.claude/launch.json`. A server
-started that way stops when its Browser tab closes, so for simulator work run `npm run dev:be` as a
-background Bash process instead. Metro (`npm run dev:rn`) always runs that way. Postgres: see the
+started that way stops when its Browser tab closes, so for simulator work run `pnpm run dev:be` as a
+background Bash process instead. Metro (`pnpm run dev:rn`) always runs that way. Postgres: see the
 `/dev-up` skill. Re-run `stack:status` until all four lines are green (the fourth is the dev
 tooling itself).
 
-**In a cloud session** (`CLAUDE_CODE_REMOTE=true`) there is no Browser pane. `npm run stack:start`
-runs both servers detached and waits for them; `npm run stack:logs be` is the backend log. The
+**In a cloud session** (`CLAUDE_CODE_REMOTE=true`) there is no Browser pane. `pnpm run stack:start`
+runs both servers detached and waits for them; `pnpm run stack:logs be` is the backend log. The
 `/dev-up` skill has the cloud details.
 
 ## 2. Seed data
 
 ```bash
-npm run dev:scenario
+pnpm run dev:scenario
 ```
 
 Seeds `owner@dev.local` (manager **and** approver), `alice`/`bob`/`carol@dev.local`, current-year
 quotas, and 11 bookings spread across pending / approved / rejected — enough for every dashboard
 widget and the approvals queue to have content. Re-running leaves existing rows alone, so a seeded
-user keeps team scopes from older runs; run `npm run dev:reset` first when roles matter. The
+user keeps team scopes from older runs; run `pnpm run dev:reset` first when roles matter. The
 password it prints is always valid for every seeded account.
 
 Prefer the `flexi-dev` MCP tools (`stack_status`, `dev_seed_scenario`, `dev_login`, `dev_reset`) when
@@ -54,7 +54,7 @@ Lands on `/dashboard/` already authenticated. Swap the email to test a member's 
 the approvals queue, `alice`/`bob`/`carol` do not. Without `?email=` the page is a small console with
 one button per account plus Seed / Reset.
 
-**Cookie injection** (`npm run dev:login <email>` → `cookieHeader`) is for drivers that set cookies
+**Cookie injection** (`pnpm run dev:login <email>` → `cookieHeader`) is for drivers that set cookies
 on the browser context directly. It only works from a clean state — the real cookie is `httpOnly`,
 so `document.cookie` cannot overwrite an existing session.
 
@@ -81,7 +81,7 @@ tools, on the container's headless Chromium:
 | `computer` click / `form_input`            | `browser_click`, `browser_type`, `browser_fill_form`   |
 | `read_console_messages {onlyErrors: true}` | `browser_console_messages {level: "error"}`            |
 | `read_network_requests {urlPattern: ...}`  | `browser_network_requests`, filter on `localhost:8080` |
-| `preview_logs`                             | `npm run stack:logs be`                                |
+| `preview_logs`                             | `pnpm run stack:logs be`                               |
 | `resize_window`                            | `browser_resize`                                       |
 | `computer {action: "screenshot"}`          | `browser_take_screenshot`                              |
 
@@ -96,11 +96,11 @@ backend has a fake driver that records every call instead. Start the backend wit
 `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`, or the Microsoft equivalents. Under any other driver
 the connect route answers 409.
 
-| MCP tool                  | CLI                                                                 | Does                                                                                          |
-| ------------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `dev_calendar_connect`    | `npm run dev:calendar:connect -- [email] [--provider microsoft]`    | connects a seeded user to the fake provider, no consent round; also `--config`, `--tz`        |
-| `dev_calendar_events`     | `npm run dev:calendar:events -- [email] [--json]`                   | the calls the fake driver received and the sync ledger, newest first; all users without email |
-| `dev_calendar_capability` | `npm run dev:calendar:capability -- PLAIN [email] [--provider ...]` | sets the connection to `PLAIN`, `STATUS` or `UNKNOWN` and resyncs its targets                 |
+| MCP tool                  | CLI                                                               | Does                                                                                          |
+| ------------------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `dev_calendar_connect`    | `pnpm run dev:calendar:connect [email] [--provider microsoft]`    | connects a seeded user to the fake provider, no consent round; also `--config`, `--tz`        |
+| `dev_calendar_events`     | `pnpm run dev:calendar:events [email] [--json]`                   | the calls the fake driver received and the sync ledger, newest first; all users without email |
+| `dev_calendar_capability` | `pnpm run dev:calendar:capability PLAIN [email] [--provider ...]` | sets the connection to `PLAIN`, `STATUS` or `UNKNOWN` and resyncs its targets                 |
 
 The email defaults to `owner@dev.local` for connect and capability. `dev:scenario` already connects
 the owner to a fake Google target when it can, with a Pro override so the target runs, and reports
@@ -116,7 +116,7 @@ than reading once.
 ## 5. Clean up
 
 ```bash
-npm run dev:reset
+pnpm run dev:reset
 ```
 
 Deletes only `@dev.local` accounts and everything hanging off them. Accounts you created by hand are
@@ -160,15 +160,15 @@ interactive loop below needs AXe alone.
 
 ### The loop
 
-The backend and Metro must be up (`npm run stack:status`; Metro is `npm run dev:rn`), and the
+The backend and Metro must be up (`pnpm run stack:status`; Metro is `pnpm run dev:rn`), and the
 simulator needs the dev client installed. `$UDID` is your simulator; use one per subagent.
 
-1. **Seed.** `npm run dev:reset && npm run dev:scenario`. Reset first: the scenario reuses
+1. **Seed.** `pnpm run dev:reset && pnpm run dev:scenario`. Reset first: the scenario reuses
    existing `@dev.local` users, so without it a seeded user keeps team scopes from older runs.
 2. **Boot and open the app.** `xcrun simctl boot $UDID`, then
    `xcrun simctl launch $UDID com.flexiday.app`. If the dev launcher lists servers, read the tree
    and tap the Metro one. The app has to be running and connected before step 3.
-3. **Sign in.** `npm run dev:login:rn -- owner@dev.local --to /requests --udid $UDID`, or the
+3. **Sign in.** `pnpm run dev:login:rn owner@dev.local --to /requests --udid $UDID`, or the
    `dev_login_rn` MCP tool with the same inputs. It mints a single-use ticket that lives 60 seconds
    and opens `flexiday://dev-sign-in?ticket=…&to=…` on the simulator. The app drops any earlier
    session, so the same command switches users. `--to` defaults to `/dashboard`. `--udid` is
@@ -212,7 +212,7 @@ bookable window, this year through the end of next. Quote the path, because the 
 and `&` specially:
 
 ```bash
-npm run dev:login:rn -- owner@dev.local --to "/requests/new?date=2026-10-12&end=2026-10-16" --udid $UDID
+pnpm run dev:login:rn owner@dev.local --to "/requests/new?date=2026-10-12&end=2026-10-16" --udid $UDID
 ```
 
 A path the app doesn't have lands on Expo Router's `expo-router-unmatched` screen. There is no
@@ -269,8 +269,8 @@ Which `auth-two-factor-*` ids show depends on the method in use:
   and tap the Open button (`--label Open --element-type Button`) inside the ticket's 60 seconds.
 - **First sign-in on a fresh install** can show the notifications intro. Tap
   `notifications-intro-not-now` to reach the target screen.
-- **npm needs `--`** before the command's own flags: `npm run dev:login:rn -- <email> --to …`.
-  npm 12 rejects `--to` and `--udid` as unknown npm flags without it.
+- **No `--` before the command's own flags.** pnpm passes them to the script as they are:
+  `pnpm run dev:login:rn <email> --to …`.
 
 ## Safety
 

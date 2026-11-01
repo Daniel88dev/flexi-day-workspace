@@ -140,7 +140,7 @@ jobs:
           claude_args: >-
             --model claude-opus-5-5
             --mcp-config ${{ runner.temp }}/weekly-deps/mcp.json
-            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(pnpm:*),Bash(git:*),Bash(gh pr:*),Bash(gh issue view:*),Bash(gh run view:*),Bash(gh run list:*),Bash(node:*),Bash(npx expo install:*),Bash(npm view:*),Bash(docker buildx imagetools inspect:*),mcp__fenro-prod__list_tasks,mcp__fenro-prod__get_task,mcp__fenro-prod__save_task,mcp__fenro-prod__add_note,mcp__fenro-prod__set_status,mcp__fenro-prod__list_labels"
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(pnpm:*),Bash(git:*),Bash(gh pr:*),Bash(gh issue view:*),Bash(gh run view:*),Bash(gh run list:*),Bash(node:*),Bash(docker buildx imagetools inspect:*),mcp__fenro-prod__list_tasks,mcp__fenro-prod__get_task,mcp__fenro-prod__save_task,mcp__fenro-prod__add_note,mcp__fenro-prod__set_status,mcp__fenro-prod__list_labels"
             --disallowedTools "Bash(gh pr merge:*),Bash(gh pr review:*),Bash(git push origin main:*),Bash(git push origin HEAD:main:*),Bash(git push --force origin main:*),Bash(curl:*),Bash(wget:*),WebFetch,WebSearch,Read(/${{ runner.temp }}/**)"
 
       - name: Remove the Fenro MCP config

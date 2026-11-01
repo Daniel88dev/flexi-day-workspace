@@ -1,0 +1,43 @@
+version: 2
+
+updates:
+  # The npm ecosystem also covers pnpm and reads pnpm-lock.yaml. Minor and patch land as one
+  # grouped PR per week so routine bumps do not become a dozen separate reviews; majors stay
+  # individual because they need one.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # showreel/ is its own package with its own lockfile.
+  - package-ecosystem: npm
+    directory: /showreel
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Actions are pinned to commit SHAs, which pins the supply chain but also means
+  # nothing updates them by hand. This is what keeps those pins current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # init and analyze are two actions out of one repo, and the action aborts
+      # with a configuration error when a workflow runs two versions of itself.
+      # Split PRs are two red runs, so every part moves as one.
+      codeql-action:
+        patterns:
+          - github/codeql-action*

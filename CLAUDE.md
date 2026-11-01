@@ -34,7 +34,7 @@ gh pr create --repo Daniel88dev/flexi-day-workspace --base main
 ```
 
 CI runs prettier, eslint, shellcheck, actionlint and a relative-link check on every PR
-(`.github/workflows/ci.yml`). Run `npm run check` before pushing to catch all of it locally.
+(`.github/workflows/ci.yml`). Run `pnpm run check` before pushing to catch all of it locally.
 
 ## How the repos connect
 
@@ -47,33 +47,33 @@ CI runs prettier, eslint, shellcheck, actionlint and a relative-link check on ev
 
 ## Local development
 
-Root `package.json` delegates into each repo via `npm --prefix`. `npm run stack:status` reports
+Root `package.json` delegates into each repo via `pnpm -C`. `pnpm run stack:status` reports
 what is up, and the `/dev-up` skill is the full startup sequence.
 
 The backend needs a Postgres on `:5432` with a `flexi-day` database. The `DATABASE` URL carries no
 user or password, so it connects as the OS user via trust auth — a native Postgres with that
-database works as is, otherwise `npm run db:up` starts a `flexi-day-pg` container configured for it.
+database works as is, otherwise `pnpm run db:up` starts a `flexi-day-pg` container configured for it.
 
-`npm run dev:emails` binds `:3000` like the frontend, so run one at a time or override the port.
-`npm run dev:rn` starts Metro on `:8081` for the iPhone dev client; the native build itself goes
+`pnpm run dev:emails` binds `:3000` like the frontend, so run one at a time or override the port.
+`pnpm run dev:rn` starts Metro on `:8081` for the iPhone dev client; the native build itself goes
 through Xcode from inside `flexi-day-rn/`.
 
-`npm run stack:start` runs the backend and the frontend as detached processes, for a shell that
+`pnpm run stack:start` runs the backend and the frontend as detached processes, for a shell that
 cannot keep a foreground server alive, and waits until both answer. Logs land in `.stack/`
-(`npm run stack:logs`), and `npm run stack:stop` ends them.
+(`pnpm run stack:logs`), and `pnpm run stack:stop` ends them.
 
 ## Seeding and signing in locally
 
 Sign-up requires email verification through SES, which does nothing locally, so seeding and sign-in
 go through a gated dev surface rather than manual `curl` + `psql`:
 
-| Command                           | Effect                                                                                                                                                                  |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run dev:scenario`            | seeds `owner@dev.local` (manager + approver), three members, quotas and bookings in every state, plus `Dev Support`, which the owner administers without being a member |
-| `npm run dev:seed`                | one verified user, optionally with a team                                                                                                                               |
-| `npm run dev:login <email>`       | issues a signed session cookie for API calls                                                                                                                            |
-| `npm run dev:login:rn -- <email>` | signs the user into the iPhone app on the simulator; `--to /path`, `--udid <udid>`                                                                                      |
-| `npm run dev:reset`               | deletes every `@dev.local` account and its data, nothing else                                                                                                           |
+| Command                         | Effect                                                                                                                                                                  |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm run dev:scenario`         | seeds `owner@dev.local` (manager + approver), three members, quotas and bookings in every state, plus `Dev Support`, which the owner administers without being a member |
+| `pnpm run dev:seed`             | one verified user, optionally with a team                                                                                                                               |
+| `pnpm run dev:login <email>`    | issues a signed session cookie for API calls                                                                                                                            |
+| `pnpm run dev:login:rn <email>` | signs the user into the iPhone app on the simulator; `--to /path`, `--udid <udid>`                                                                                      |
+| `pnpm run dev:reset`            | deletes every `@dev.local` account and its data, nothing else                                                                                                           |
 
 `http://localhost:3000/dev-sign-in/?email=owner@dev.local` then lands on the dashboard already
 authenticated. The `flexi-dev` MCP server (`.mcp.json`, `tools/mcp/flexi-dev/`) exposes the same
@@ -103,11 +103,11 @@ run outside a cloud container unless passed `--force`, because it edits `pg_hba.
 database roles. The environment's setup script field holds one line, `bash tools/cloud/setup.sh`;
 [`README.md`](README.md) walks through the environment settings.
 
-There is no desktop Browser pane in a cloud session, so `preview_start` does not exist: `npm run
-stack:start` is the way to bring the servers up, and `npm run stack:logs be` is where backend
+There is no desktop Browser pane in a cloud session, so `preview_start` does not exist: `pnpm run
+stack:start` is the way to bring the servers up, and `pnpm run stack:logs be` is where backend
 errors go. The `playwright` server in `.mcp.json` drives the image's headless Chromium, and the
 `ui-test` skill names the tools. The backend e2e suite runs against the native `testdb` with
-`npm run test:e2e` inside `flexi-day-be`, no container needed.
+`pnpm run test:e2e` inside `flexi-day-be`, no container needed.
 
 The four clones carry no push credentials. Pushing to a product repo from a cloud session needs
 that repo attached with push access through the session's add-repo tool.
@@ -118,17 +118,18 @@ checkout, so the stack runs and the dev CLI finds `flexi-day-be/.env`, but brows
 
 ## Node version
 
-All four repos pin Node 24 in their own `.nvmrc` (CI reads it via `node-version-file`). Use the
-matching Node locally: installing with a different npm major rewrites `package-lock.json` into a
-form the other rejects, and `npm ci` then fails before any CI step runs.
+All five repos pin Node 24 in their own `.nvmrc` (CI reads it via `node-version-file`). Use the
+matching Node locally.
 
 ## Package managers
 
-The repos are moving from npm to pnpm one at a time. A repo with `pnpm-lock.yaml` uses pnpm, one
-with `package-lock.json` uses npm; never run the other tool's install there, or it writes a
-second lockfile. `npm run install:all` and `tools/cloud/setup.sh` use each repo's own package
-manager. pnpm passes flags to a script directly: `pnpm run x --flag`, never
-`pnpm run x -- --flag`, which hands the script a literal `--`.
+All five repos use pnpm, each pinned to the same version and hash in its `packageManager` field.
+Never install with npm in any of them: it writes a `package-lock.json` beside `pnpm-lock.yaml`.
+Use `pnpm exec` for a binary the repo installs and `pnpm dlx` for a one-off package. This repo
+holds two separate packages, the root and `showreel/`, each with its own lockfile. The root
+`pnpm-workspace.yaml` holds settings only, with no `packages:` list. pnpm passes flags to a
+script directly: `pnpm run x --flag`, never `pnpm run x -- --flag`, which hands the script a
+literal `--`.
 
 ## Infrastructure
 
@@ -138,7 +139,7 @@ AWS resource is not finished until the Terraform files carry it.
 
 **`terraform apply` and production database migrations both belong to the user.** Prepare the
 change, run the plan or apply the migration locally, then hand over the exact command and stop.
-`npm run db:migrate:prod` in `flexi-day-be` enforces this itself: it quits unless stdin is a
+`pnpm run db:migrate:prod` in `flexi-day-be` enforces this itself: it quits unless stdin is a
 terminal.
 
 - **Backend** (App Runner, RDS, Secrets Manager, Route 53 for `api.flexi-day.com`) —
@@ -195,7 +196,7 @@ and runs it from inside that repo, because prettier reads ignore files from its 
 and the root `.prettierignore` lists every sub-repo. A session started in a sub-repo uses that
 repo's own hook. **A file written through Bash** — `sed`, a heredoc, a `python` one-liner —
 **skips both**. `tools/hooks/format-staged.sh` catches those at commit time in all five repos and
-re-stages them; run `npm run format:fe|be|emails|rn` from the root, or `npm run format` for the
+re-stages them; run `pnpm run format:fe|be|emails|rn` from the root, or `pnpm run format` for the
 workspace repo's own files, if you want it clean before that. A file whose repo has no
 `node_modules` stays unformatted.
 
@@ -211,7 +212,7 @@ included; existing em dashes there change only when their passage is edited for 
 ## Code review
 
 For review requests ("review this", "check my changes"), use Matt Pocock's `code-review`
-skill (installed with `npx skills` into `~/.agents/skills/`). Use the built-in `/code-review`
+skill (installed with the `skills` CLI into `~/.agents/skills/`). Use the built-in `/code-review`
 (including ultra) only when the user names it.
 
 ## Comments
