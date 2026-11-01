@@ -131,6 +131,22 @@ holds two separate packages, the root and `showreel/`, each with its own lockfil
 script directly: `pnpm run x --flag`, never `pnpm run x -- --flag`, which hands the script a
 literal `--`.
 
+## Supply-chain policy
+
+Every `pnpm-workspace.yaml`, `showreel/` included, opens with the same settings block. With it,
+pnpm refuses versions younger than 3 days, runs no build script that `allowBuilds` doesn't allow,
+fails the install when a package loses its provenance, and blocks exotic subdependencies. Each
+Dependabot `npm` entry carries a matching 3-day cooldown, and `dependency-review-action` fails any
+PR that adds a high-severity advisory. Only these differ per repo:
+
+- `allowBuilds`: a new entry needs a comment saying what the script does and why the package fails
+  without it, plus a call-out in the PR.
+- `minimumReleaseAgeExclude` and `trustPolicyExclude`: exact-version entries only (`pkg@1.2.3`).
+- `allow-ghsas` in `.github/dependency-review-config.yml`: each waiver names its reason and Fenro
+  task.
+
+Policy and reasoning: Fenro T-561.
+
 ## Infrastructure
 
 AWS is Terraform, applied by hand from a local checkout. There is no CI job and no remote state, so
