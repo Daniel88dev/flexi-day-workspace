@@ -43,7 +43,7 @@ flexi-day-workspace/         this repo
 └── package.json             scripts that delegate into each clone
 ```
 
-The names matter. Every script here delegates with `npm --prefix ./flexi-day-be`, and the dev
+The names matter. Every script here delegates with `pnpm -C ./flexi-day-be`, and the dev
 tooling reads `flexi-day-be/.env` by path, so a clone named anything else breaks both.
 
 The four directories are gitignored. This repo never versions their contents, and running
@@ -56,46 +56,45 @@ whatever branch its work needs.
 
 ## Setup
 
-Every repo pins Node 24 in its own `.nvmrc`, and CI reads that file. Use the matching Node locally.
-Installing with a different npm major rewrites `package-lock.json` into a form the other npm
-rejects, and `npm ci` then fails in CI before a single check runs.
+Every repo pins Node 24 in its own `.nvmrc`, which CI reads, and pnpm in the `packageManager`
+field of its `package.json`. All five pin the same pnpm; install that version.
 
 ```bash
-nvm use          # or: fnm use
-npm install      # this repo's own tooling
-npm run install:all   # dependencies for all four clones
+nvm use                # or: fnm use
+pnpm install           # this repo's own tooling
+pnpm run install:all   # dependencies for all four clones
 ```
 
 The backend needs PostgreSQL on port 5432 with a `flexi-day` database. Its `DATABASE` URL carries
 no user or password, so it connects as the OS user over trust auth. A native Postgres with that
-database already works. Otherwise `npm run db:up` starts a `flexi-day-pg` container configured for
+database already works. Otherwise `pnpm run db:up` starts a `flexi-day-pg` container configured for
 it.
 
-One port conflict to know about: `npm run dev:emails` binds port 3000, the same as the frontend.
+One port conflict to know about: `pnpm run dev:emails` binds port 3000, the same as the frontend.
 Run one at a time, or override the port.
 
 ## Daily commands
 
 Run these from this directory. They reach into the clones for you.
 
-| Command                                                           | What it does                                                                  |
-| ----------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| `npm run stack:status`                                            | reports what is currently up: Postgres, backend, frontend, Metro, dev tooling |
-| `npm run dev:be` / `dev:fe` / `dev:emails` / `dev:rn`             | start one dev server (`dev:rn` is Metro; the iPhone build runs through Xcode) |
-| `npm run db:up` / `db:down`                                       | start or stop the Postgres container                                          |
-| `npm run stack:start` / `stack:stop` / `stack:logs`               | run the backend and frontend detached, with logs in `.stack/`                 |
-| `npm run check`                                                   | this repo's own checks: prettier, eslint, links, shellcheck, actionlint       |
-| `npm run format:fe` / `format:be` / `format:emails` / `format:rn` | run prettier inside a clone                                                   |
+| Command                                                            | What it does                                                                  |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
+| `pnpm run stack:status`                                            | reports what is currently up: Postgres, backend, frontend, Metro, dev tooling |
+| `pnpm run dev:be` / `dev:fe` / `dev:emails` / `dev:rn`             | start one dev server (`dev:rn` is Metro; the iPhone build runs through Xcode) |
+| `pnpm run db:up` / `db:down`                                       | start or stop the Postgres container                                          |
+| `pnpm run stack:start` / `stack:stop` / `stack:logs`               | run the backend and frontend detached, with logs in `.stack/`                 |
+| `pnpm run check`                                                   | this repo's own checks: prettier, eslint, links, shellcheck, actionlint       |
+| `pnpm run format:fe` / `format:be` / `format:emails` / `format:rn` | run prettier inside a clone                                                   |
 
 Signing up normally requires email verification through SES, which does nothing on a laptop. So
 seeding and signing in go through a dev-only surface instead of hand-written `curl` and `psql`:
 
-| Command                     | Effect                                                                                              |
-| --------------------------- | --------------------------------------------------------------------------------------------------- |
-| `npm run dev:scenario`      | seeds `owner@dev.local` as manager and approver, three members, quotas, and bookings in every state |
-| `npm run dev:seed`          | one verified user, optionally with a team                                                           |
-| `npm run dev:login <email>` | issues a signed session cookie for API calls                                                        |
-| `npm run dev:reset`         | deletes every `@dev.local` account and its data, and nothing else                                   |
+| Command                      | Effect                                                                                              |
+| ---------------------------- | --------------------------------------------------------------------------------------------------- |
+| `pnpm run dev:scenario`      | seeds `owner@dev.local` as manager and approver, three members, quotas, and bookings in every state |
+| `pnpm run dev:seed`          | one verified user, optionally with a team                                                           |
+| `pnpm run dev:login <email>` | issues a signed session cookie for API calls                                                        |
+| `pnpm run dev:reset`         | deletes every `@dev.local` account and its data, and nothing else                                   |
 
 Then `http://localhost:3000/dev-sign-in/?email=owner@dev.local` lands on the dashboard already
 signed in.
@@ -124,7 +123,7 @@ the three env files with random secrets and dev tools on, and applies migrations
 `SessionStart` hook runs it again on every session; by then almost everything is in place and the
 run mostly restarts Postgres, which the cached filesystem cannot keep running.
 
-Inside the session, `npm run stack:start` brings the backend and frontend up as detached
+Inside the session, `pnpm run stack:start` brings the backend and frontend up as detached
 processes and `.mcp.json` provides a `playwright` server on the container's headless Chromium, so
 the `ui-test` skill works the same way it does on a laptop. Pushing to one of the product repos
 needs that repo attached to the session with push access first.
@@ -165,22 +164,22 @@ PR, including one-line doc fixes.
 
 ```bash
 git checkout -b docs/some-slug
-npm run check
+pnpm run check
 git commit
 git push -u origin docs/some-slug
 gh pr create --repo Daniel88dev/flexi-day-workspace --base main
 ```
 
 CI runs prettier, eslint, a relative-link check over the Markdown, shellcheck over the commit hook,
-actionlint over the workflows, and CodeQL. `npm run check` runs all of it except CodeQL.
+actionlint over the workflows, and CodeQL. `pnpm run check` runs all of it except CodeQL.
 
-Two of those need binaries that npm does not install. On macOS:
+Two of those need binaries that `pnpm install` does not fetch. On macOS:
 
 ```bash
 brew install shellcheck actionlint
 ```
 
-Without them, `npm run check` skips those two steps and says so. CI always runs them.
+Without them, `pnpm run check` skips those two steps and says so. CI always runs them.
 
 Issues for the product belong in the repo they affect, not here. A bare `gh issue create` from this
 directory files against `flexi-day-workspace`, so pass `-R Daniel88dev/flexi-day-be` or run the

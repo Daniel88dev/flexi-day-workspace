@@ -1,0 +1,6 @@
+strictDepBuilds: true
+# Keeps the lockfile free of the packageManagerDependencies document, which GitHub's dependency
+# graph cannot parse yet (dependabot-core#15904). Drop it once that issue closes.
+pmOnFail: ignore
+skills:
+  dirs: []

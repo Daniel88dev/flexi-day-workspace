@@ -164,7 +164,7 @@ const commands = {
 };
 
 if (!command || !commands[command]) {
-  console.log(`Usage: npm run dev:<command>
+  console.log(`Usage: pnpm run dev:<command>
 
   status                       what is running (Postgres, backend, frontend, Metro), and whether dev tools are live
   seed [--email --team ...]    one verified user (+ team, quota)

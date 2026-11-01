@@ -6,7 +6,7 @@ frame in headless Chrome, with a soundtrack synthesised from the same cue sheet.
 ## Render
 
 ```bash
-npm install
+pnpm install
 node audio.mjs
 node render.mjs
 ```
@@ -35,7 +35,7 @@ parameter loops it in real time.
   blur possible: each output frame averages 8 renders across a 180° shutter (`tmix` in ffmpeg).
 - Colours, fonts, the team and the logo geometry come from the product: `flexi-day/app/globals.css`,
   `flexi-day/lib/demo/team.ts`, `components/brand/logo.tsx`. The fonts come from the same
-  `@expo-google-fonts` packages the iPhone app uses, so `npm install` fetches them with their OFL
+  `@expo-google-fonts` packages the iPhone app uses, so `pnpm install` fetches them with their OFL
   licence, and the page refuses to render if one is missing.
 
 | Time        | Scene                                                               |

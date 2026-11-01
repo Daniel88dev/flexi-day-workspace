@@ -22,23 +22,21 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - name: Set up Node and pnpm, install dependencies
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           node-version-file: .nvmrc
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
+          cache: true
+          require-lockfile: true
 
       - name: Format
-        run: npm run format:check
+        run: pnpm run format:check
 
       - name: Lint
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Check relative links
-        run: npm run check:links
+        run: pnpm run check:links
 
   # The commit hook rewrites the git index and the cloud setup script provisions a container,
   # so the shell under tools/ gets linted properly.

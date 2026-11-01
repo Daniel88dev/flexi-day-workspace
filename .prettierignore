@@ -1,7 +1,8 @@
 node_modules
-package-lock.json
+pnpm-lock.yaml
 flexi-day
 flexi-day-be
 flexi-day-emails
 flexi-day-rn
 todo
+.claude/worktrees

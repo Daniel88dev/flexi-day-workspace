@@ -3,14 +3,14 @@
   "configurations": [
     {
       "name": "flexi-fe",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "pnpm",
       "runtimeArgs": ["run", "dev:fe"],
       "port": 3000,
       "autoPort": true
     },
     {
       "name": "flexi-be",
-      "runtimeExecutable": "npm",
+      "runtimeExecutable": "pnpm",
       "runtimeArgs": ["run", "dev:be"],
       "port": 8080
     }

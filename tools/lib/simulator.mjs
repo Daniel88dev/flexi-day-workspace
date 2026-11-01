@@ -115,7 +115,7 @@ async function mintTicket(email) {
   } catch (err) {
     if (err.status === 404 || /no such user/i.test(err.message)) {
       throw new DevApiError(
-        `No user ${email} in the local database. Seed one with: npm run dev:scenario`,
+        `No user ${email} in the local database. Seed one with: pnpm run dev:scenario`,
         404
       );
     }
