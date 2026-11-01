@@ -1,0 +1,159 @@
+name: weekly-deps
+
+# The weekly dependency job, called from a thin workflow in each of the five repos. Design and
+# reasoning: Fenro T-563. The instructions Claude follows live in tools/weekly-deps/prompt.md and
+# are always read from this repo's main, so a change to them reaches every repo through one PR.
+#
+# A caller looks like this (the cron hour differs per repo):
+#
+#   on:
+#     schedule:
+#       - cron: "0 6 * * 3"
+#     workflow_dispatch:
+#   permissions: {}
+#   jobs:
+#     weekly-deps:
+#       permissions:
+#         contents: write
+#         pull-requests: write
+#         id-token: write
+#         actions: read
+#         checks: read
+#       uses: Daniel88dev/flexi-day-workspace/.github/workflows/weekly-deps.yml@main
+#       secrets:
+#         CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+#         FENRO_TOKEN: ${{ secrets.FENRO_TOKEN }}
+
+on:
+  workflow_call:
+    # Both live in the caller's `weekly-deps` environment. The caller still has to pass them by
+    # name: a reusable workflow gets an empty string for any secret its caller leaves out, and
+    # `environment:` on the job below is what makes the environment's value win.
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: true
+      FENRO_TOKEN:
+        required: true
+
+permissions: {}
+
+env:
+  REPORT_TASK: T-593
+  FENRO_URL: https://www.fenro-dashboard.com/api/mcp
+  WORKSPACE_REPO: Daniel88dev/flexi-day-workspace
+
+jobs:
+  weekly-deps:
+    name: Weekly dependency maintenance
+    runs-on: ubuntu-latest
+    environment: weekly-deps
+    timeout-minutes: 50
+    concurrency:
+      group: weekly-deps-${{ github.repository }}
+      cancel-in-progress: false
+    # id-token is not for the Claude step's own use: claude-code-action trades the job's OIDC
+    # token for a Claude GitHub App token, and only an App push starts CI on the weekly PR. That
+    # App token carries contents, pull requests and issues, plus the two reads below for reading
+    # Dependabot PRs' CI, never workflows.
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+      actions: read
+      checks: read
+
+    steps:
+      - name: Check out the weekly-deps tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ env.WORKSPACE_REPO }}
+          ref: main
+          path: .weekly-deps-tooling
+          sparse-checkout: tools/weekly-deps
+          persist-credentials: false
+
+      # Fetched first and moved out of the working tree: nothing Claude commits can pick it up, and
+      # the failure step still has its script when the repo checkout is what broke.
+      - name: Move the tooling out of the working tree
+        run: |
+          mkdir -p "$RUNNER_TEMP/weekly-deps"
+          cp .weekly-deps-tooling/tools/weekly-deps/prompt.md \
+            .weekly-deps-tooling/tools/weekly-deps/fenro-call.sh "$RUNNER_TEMP/weekly-deps/"
+          rm -rf .weekly-deps-tooling
+
+      - name: Check out the repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node and pnpm
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+        with:
+          runtime: node
+          node-version-file: .nvmrc
+          install: false
+
+      - name: Assemble the prompt
+        id: prompt
+        run: |
+          delimiter="PROMPT_$(openssl rand -hex 16)"
+          {
+            echo "text<<$delimiter"
+            cat "$RUNNER_TEMP/weekly-deps/prompt.md"
+            echo
+            echo "## This run"
+            echo
+            echo "- Repository: \`$GITHUB_REPOSITORY\`"
+            echo "- Date: $(date -u +%Y-%m-%d)"
+            echo "- Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "- Report task: $REPORT_TASK"
+            echo "$delimiter"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Write the Fenro MCP config
+        env:
+          FENRO_TOKEN: ${{ secrets.FENRO_TOKEN }}
+        run: |
+          umask 077
+          jq -n --arg token "$FENRO_TOKEN" --arg url "$FENRO_URL" '{mcpServers: {"fenro-prod": {
+            type: "http",
+            url: $url,
+            headers: {Authorization: ("Bearer " + $token)}
+          }}}' > "$RUNNER_TEMP/weekly-deps/mcp.json"
+
+      # Shorter than the job's limit: a timed-out step is a failure, so the report step still runs,
+      # where a timed-out job is cancelled and skips it.
+      - name: Run Claude
+        timeout-minutes: 45
+        uses: anthropics/claude-code-action@d535f5172dec02b204866b393d6b20b9b2aaf98d # v1.0.266
+        env:
+          # CI=true makes pnpm refuse to touch the lockfile, and updating it is the job.
+          pnpm_config_frozen_lockfile: "false"
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: ${{ steps.prompt.outputs.text }}
+          show_full_output: false
+          additional_permissions: |
+            actions: read
+            checks: read
+          claude_args: >-
+            --model claude-opus-5-5
+            --mcp-config ${{ runner.temp }}/weekly-deps/mcp.json
+            --allowedTools "Read,Edit,Write,Glob,Grep,Bash(pnpm:*),Bash(git:*),Bash(gh pr:*),Bash(gh issue view:*),Bash(gh run view:*),Bash(gh run list:*),Bash(node:*),Bash(npx expo install:*),Bash(npm view:*),Bash(docker buildx imagetools inspect:*),mcp__fenro-prod__list_tasks,mcp__fenro-prod__get_task,mcp__fenro-prod__save_task,mcp__fenro-prod__add_note,mcp__fenro-prod__set_status,mcp__fenro-prod__list_labels"
+            --disallowedTools "Bash(gh pr merge:*),Bash(gh pr review:*),Bash(git push origin main:*),Bash(git push origin HEAD:main:*),Bash(git push --force origin main:*),Bash(curl:*),Bash(wget:*),WebFetch,WebSearch,Read(/${{ runner.temp }}/**)"
+
+      - name: Remove the Fenro MCP config
+        if: always()
+        run: rm -f "$RUNNER_TEMP/weekly-deps/mcp.json"
+
+      - name: Report the failure to Fenro
+        if: failure()
+        env:
+          FENRO_TOKEN: ${{ secrets.FENRO_TOKEN }}
+        run: |
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          text="**Failed:** \`$GITHUB_REPOSITORY\`, $(date -u +%Y-%m-%d). The weekly dependency run failed or timed out, so Claude's report note for it is missing or incomplete. Log: $run_url"
+          args="$(jq -nc --arg task "$REPORT_TASK" --arg text "$text" \
+            '{task: $task, kind: "note", text: $text}')"
+          bash "$RUNNER_TEMP/weekly-deps/fenro-call.sh" add_note "$args"

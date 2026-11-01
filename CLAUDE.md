@@ -172,6 +172,19 @@ asks for that merge outright. This holds here and in all four sub-repos. Push th
 PR, report CI, and stop. Opening a PR is not permission to merge it, and one merge the user asked
 for does not carry to the next.
 
+## Weekly dependency job
+
+Claude maintains dependencies in all five repos every Wednesday, one repo an hour from 05:00 UTC:
+workspace, fe, be, emails, rn. Each repo has a thin caller workflow that runs this repo's
+reusable [`.github/workflows/weekly-deps.yml`](.github/workflows/weekly-deps.yml) at `main`. The
+instructions Claude follows are in [`tools/weekly-deps/prompt.md`](tools/weekly-deps/prompt.md),
+so changing them is a PR here. A run rewrites the repo's `deps/weekly` branch, opens or updates one
+PR, files Fenro tasks for what it leaves out, and adds a report note to T-593.
+
+`tools/weekly-deps/setup.sh <owner/repo>` walks through a repo's one-time setup: the Claude GitHub
+App, the `weekly-deps` environment limited to `main`, and its two secrets. Design and reasoning:
+Fenro T-563.
+
 ## Formatting
 
 All five repos run prettier as a CI job of its own (`format:check`), separate from eslint — `lint`
