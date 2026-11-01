@@ -29,6 +29,11 @@ jobs:
           cache: true
           require-lockfile: true
 
+      # showreel/ has its own lockfile, and the install is what checks it against the
+      # supply-chain policy in its pnpm-workspace.yaml.
+      - name: Install showreel dependencies
+        run: pnpm -C showreel install --frozen-lockfile
+
       - name: Format
         run: pnpm run format:check
 
