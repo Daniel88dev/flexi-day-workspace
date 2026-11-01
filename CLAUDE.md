@@ -90,10 +90,11 @@ must never hold the token. `flexi-day-be/docs/invariants.md` has the enforcement
 A Claude Code cloud environment that attaches only this repo runs the whole stack, Postgres
 included, with no Docker. `tools/cloud/setup.sh` is the environment's setup script. It installs
 Node 24 through nvm and links it ahead of the image's Node 22, clones the four product repos into
-this checkout, runs `npm ci` in every repo but `flexi-day-rn` (`FLEXI_CLOUD_WITH_RN=1` adds it),
-starts the image's native Postgres 16 with trust auth on loopback and the `flexi-day` and `testdb`
-databases, writes `flexi-day-be/.env`, `flexi-day-be/.env.e2e.test` and `flexi-day/.env.local` with
-random secrets and dev tools on, and applies migrations to both databases. Unlike the laptop's,
+this checkout, installs dependencies in every repo but `flexi-day-rn` (`FLEXI_CLOUD_WITH_RN=1`
+adds it), starts the image's native Postgres 16 with trust auth on loopback and the `flexi-day`
+and `testdb` databases, writes `flexi-day-be/.env`, `flexi-day-be/.env.e2e.test` and
+`flexi-day/.env.local` with random secrets and dev tools on, and applies migrations to both
+databases. Unlike the laptop's,
 the `DATABASE` URLs there name the OS user, because node-postgres falls back to `$USER` and a cloud
 shell does not set it. Each step skips what is already there, so the SessionStart hook in
 `.claude/settings.json` runs it again on every cloud session. That second run is what restarts
@@ -120,6 +121,14 @@ checkout, so the stack runs and the dev CLI finds `flexi-day-be/.env`, but brows
 All four repos pin Node 24 in their own `.nvmrc` (CI reads it via `node-version-file`). Use the
 matching Node locally: installing with a different npm major rewrites `package-lock.json` into a
 form the other rejects, and `npm ci` then fails before any CI step runs.
+
+## Package managers
+
+The repos are moving from npm to pnpm one at a time. A repo with `pnpm-lock.yaml` uses pnpm, one
+with `package-lock.json` uses npm; never run the other tool's install there, or it writes a
+second lockfile. `npm run install:all` and `tools/cloud/setup.sh` use each repo's own package
+manager. pnpm passes flags to a script directly: `pnpm run x --flag`, never
+`pnpm run x -- --flag`, which hands the script a literal `--`.
 
 ## Infrastructure
 

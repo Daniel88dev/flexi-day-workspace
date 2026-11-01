@@ -12,7 +12,7 @@
     "check:links": "node tools/check-links.mjs",
     "check:shell": "if command -v shellcheck >/dev/null 2>&1; then find tools -name \"*.sh\" -exec shellcheck {} +; else echo \"shellcheck not installed, skipping (CI runs it)\"; fi",
     "check:actions": "if command -v actionlint >/dev/null 2>&1; then actionlint; else echo \"actionlint not installed, skipping (CI runs it)\"; fi",
-    "install:all": "npm --prefix ./flexi-day install && npm --prefix ./flexi-day-be install && npm --prefix ./flexi-day-emails install && npm --prefix ./flexi-day-rn install",
+    "install:all": "tools/install-all.sh",
     "dev:be": "npm --prefix ./flexi-day-be run dev",
     "dev:fe": "npm --prefix ./flexi-day run dev",
     "dev:emails": "npm --prefix ./flexi-day-emails run dev",
