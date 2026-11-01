@@ -106,23 +106,79 @@ ensure_sub_repos() {
 
 # --- Dependencies -------------------------------------------------------------------------
 
-# npm ci only when package-lock.json changed since the last install, so a cached container
-# and a resumed session both skip it.
+dep_dirs() {
+  echo "$WORKSPACE"
+  echo "$WORKSPACE/flexi-day"
+  echo "$WORKSPACE/flexi-day-be"
+  echo "$WORKSPACE/flexi-day-emails"
+  [ "$WITH_RN" != 1 ] || echo "$WORKSPACE/flexi-day-rn"
+}
+
+# The repos move from npm to pnpm one at a time, and the image ships no pnpm. One pnpm goes on
+# PATH, so every pnpm repo has to pin the same version.
+ensure_pnpm() {
+  local dir pin v version="" pinned_by=""
+  while read -r dir; do
+    [ -f "$dir/pnpm-lock.yaml" ] || continue
+    pin=$(node -p "require(process.argv[1]).packageManager || ''" "$dir/package.json")
+    [[ "$pin" == pnpm@* ]] || die "$(basename "$dir") has pnpm-lock.yaml but no pnpm@ packageManager pin"
+    v=${pin#pnpm@}
+    v=${v%%+*}
+    if [ -z "$version" ]; then
+      version=$v
+      pinned_by=$(basename "$dir")
+    elif [ "$v" != "$version" ]; then
+      die "$(basename "$dir") pins pnpm $v but $pinned_by pins $version"
+    fi
+  done < <(dep_dirs)
+  [ -n "$version" ] || return 0
+
+  # Asked from outside the repos, where no packageManager pin makes pnpm report another version.
+  if [ "$(cd "$WORKSPACE" && pnpm -v 2>/dev/null)" = "$version" ]; then
+    log "pnpm $version is active"
+    return
+  fi
+
+  log "Installing pnpm $version"
+  local prefix="${XDG_DATA_HOME:-$HOME/.local/share}/flexi-day/pnpm-$version"
+  npm install --global --prefix "$prefix" --no-audit --no-fund "pnpm@$version" >"$RUN_DIR/setup-pnpm.log" 2>&1 ||
+    {
+      tail -n 40 "$RUN_DIR/setup-pnpm.log" >&2
+      die "pnpm $version did not install"
+    }
+  mkdir -p "$LINK_DIR"
+  local tool
+  for tool in pnpm pnpx; do
+    ln -sfn "$prefix/bin/$tool" "$LINK_DIR/$tool"
+  done
+  export PATH="$prefix/bin:$PATH"
+  log "pnpm $(cd "$WORKSPACE" && pnpm -v) linked into $LINK_DIR"
+}
+
+# Installs only when the repo's lockfile changed since the last install, so a cached container
+# and a resumed session both skip it. pnpm-lock.yaml means pnpm; otherwise npm.
 install_deps() {
-  local dir=$1 name stamp lock_hash
+  local dir=$1 name stamp lock cmd lock_hash
   name=$(basename "$dir")
   stamp="$dir/node_modules/.flexi-cloud-lock-sha256"
-  lock_hash=$(sha256sum "$dir/package-lock.json" | cut -d' ' -f1)
+  if [ -f "$dir/pnpm-lock.yaml" ]; then
+    lock=pnpm-lock.yaml
+    cmd=(pnpm install --frozen-lockfile)
+  else
+    lock=package-lock.json
+    cmd=(npm ci --no-audit --no-fund)
+  fi
+  lock_hash=$(sha256sum "$dir/$lock" | cut -d' ' -f1)
   if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$lock_hash" ]; then
     echo "dependencies current in $name"
     return 0
   fi
-  echo "npm ci in $name"
-  if (cd "$dir" && npm ci --no-audit --no-fund) >"$RUN_DIR/setup-$name.log" 2>&1; then
+  echo "${cmd[*]} in $name"
+  if (cd "$dir" && "${cmd[@]}") >"$RUN_DIR/setup-$name.log" 2>&1; then
     echo "$lock_hash" >"$stamp"
     echo "installed $name"
   else
-    echo "npm ci failed in $name:" >&2
+    echo "${cmd[*]} failed in $name:" >&2
     tail -n 40 "$RUN_DIR/setup-$name.log" >&2
     return 1
   fi
@@ -130,17 +186,12 @@ install_deps() {
 
 ensure_deps() {
   log "Installing dependencies"
-  local dirs=("$WORKSPACE" "$WORKSPACE/flexi-day" "$WORKSPACE/flexi-day-be" "$WORKSPACE/flexi-day-emails")
-  if [ "$WITH_RN" = 1 ]; then
-    dirs+=("$WORKSPACE/flexi-day-rn")
-  else
-    echo "skipping flexi-day-rn (FLEXI_CLOUD_WITH_RN=1 includes it)"
-  fi
+  [ "$WITH_RN" = 1 ] || echo "skipping flexi-day-rn (FLEXI_CLOUD_WITH_RN=1 includes it)"
   local dir pids=() failed=0
-  for dir in "${dirs[@]}"; do
+  while read -r dir; do
     install_deps "$dir" &
     pids+=($!)
-  done
+  done < <(dep_dirs)
   local pid
   for pid in "${pids[@]}"; do
     wait "$pid" || failed=1
@@ -293,6 +344,7 @@ ensure_migrated() {
 
 ensure_node
 ensure_sub_repos
+ensure_pnpm
 ensure_deps
 ensure_chromium
 ensure_postgres
