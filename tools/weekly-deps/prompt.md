@@ -239,5 +239,19 @@ Templates built with react-email. `build` renders every template and must pass. 
   Run `pnpm expo install --check` to see what the current SDK expects, and `pnpm expo install --fix`
   to apply it. A new Expo SDK is a major change: file a Fenro task.
 - The pnpm bump also edits the `"pnpm"` version in `eas.json`.
+- `build.production.node` in `eas.json` pins the Node the EAS builder runs, and EAS accepts only an
+  exact version there. Move it to the newest Node 24 release past the release-age window. This
+  prints it, given the minutes `pnpm config get minimumReleaseAge` reports:
+
+  ```bash
+  node -e 'fetch("https://nodejs.org/dist/index.json").then((r) => r.json()).then((rs) =>
+    console.log(rs.find((r) => r.version.startsWith("v24.") &&
+      Date.parse(r.date) <= Date.now() - process.argv[1] * 6e4).version.slice(1)))' <minutes>
+  ```
+
+  Never move it to another major. List the change under "Updated".
+
+- eas-cli is a devDependency. When its version in the lockfile changes, raise `cli.version` in
+  `eas.json` to `>= <that version>`.
 - The native iOS build and EAS builds stay with the user. Run `typecheck`, `lint`,
   `format:check` and `test`.
