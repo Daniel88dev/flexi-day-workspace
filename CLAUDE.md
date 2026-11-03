@@ -144,6 +144,8 @@ PR that adds a high-severity advisory. Only these differ per repo:
 - `minimumReleaseAgeExclude` and `trustPolicyExclude`: exact-version entries only (`pkg@1.2.3`).
 - `allow-ghsas` in `.github/dependency-review-config.yml`: each waiver names its reason and Fenro
   task.
+- `auditConfig.ignoreGhsas` in `pnpm-workspace.yaml`: each entry carries a comment naming its
+  reason and Fenro task.
 
 Policy and reasoning: Fenro T-561.
 
