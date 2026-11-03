@@ -8,8 +8,8 @@ task.
 One run does this:
 
 1. Reset the `deps/weekly` branch from `main`.
-2. Fold in the red Dependabot PRs, update what Dependabot skips, re-check overrides and waivers,
-   audit, bump pnpm, and check dependabot-core#15904.
+2. Fold in the red Dependabot PRs, update what Dependabot skips, re-check overrides, waivers and
+   audit ignores, run `pnpm audit`, bump pnpm, and check dependabot-core#15904.
 3. Pass every local check, push, and open or update one PR.
 4. Add a report note to the report task, even when there was nothing to do.
 
@@ -27,6 +27,9 @@ Fenro task, and finish steps 3 and 4 with what passes.
   they are.
 - Add an `allow-ghsas` waiver to `.github/dependency-review-config.yml`. Removing one is part of
   the job.
+- Add an `auditConfig` ignore (`ignoreGhsas`, `ignoreCves`) to `pnpm-workspace.yaml`, or run
+  `pnpm audit --ignore` or `--ignore-unfixable`. Removing an `ignoreGhsas` entry is part of the
+  job.
 - Add or remove a dependency, or add an override. Those become Fenro tasks.
 - Read, print or commit credentials: environment variables, `~/.git-credentials`, the remote URL's
   token, or any file under `$RUNNER_TEMP`.
@@ -99,11 +102,29 @@ For every GHSA in `.github/dependency-review-config.yml`:
 3. If not, leave the waiver. Add a note to its Fenro task only when something changed, such as a
    fix landing upstream but not yet released.
 
+### Audit ignores
+
+For every GHSA under `auditConfig.ignoreGhsas` in `pnpm-workspace.yaml`:
+
+1. Read the comment next to it for the reason and the Fenro task.
+2. Remove it and run `pnpm audit`. If the advisory no longer shows, an earlier duty already
+   fixed it or the package left the tree: keep the ignore removed and go to step 5.
+3. Otherwise read the advisory's patched versions from the audit output. Check that a patched
+   release exists and is past the release-age window (`pnpm view <pkg> time --json`).
+4. If it does, try to reach it within the limit: `pnpm update <pkg>` for a transitive package, or
+   a patch or minor bump of the direct dependency that pulls it in. Run `pnpm audit` again.
+5. If the advisory is gone, keep the ignore removed and commit that removal in the same commit as
+   the update that fixed it, if there was one. List it under "Overrides and waivers". If the
+   comment names a Fenro task, add a note there saying it shipped and set the task to `done`.
+6. If it still shows, revert the update attempt, put the ignore back exactly as it was, and list
+   it as kept under "Overrides and waivers". Add a note to its Fenro task only when something
+   changed, such as a fix landing upstream but not yet released.
+
 ### Audit
 
 Run `pnpm audit`. Fix what a patch or minor update of a direct dependency, or `pnpm update <pkg>`
-for a transitive one, resolves within the limit. Anything that needs a major bump or an override
-becomes a Fenro task. List what is left in the report.
+for a transitive one, resolves within the limit. Anything that needs a major bump, an override or
+an audit ignore becomes a Fenro task. List what is left in the report.
 
 ### Bump pnpm
 
@@ -163,7 +184,8 @@ The body has these sections, each with "None" when empty:
 
 - **Fixed**: red Dependabot PRs folded in (with links) and vulnerabilities fixed.
 - **Updated**: other version changes, pnpm included.
-- **Overrides and waivers**: what was dropped and why, what was kept.
+- **Overrides and waivers**: which overrides, `allow-ghsas` waivers and audit ignores were dropped
+  and why, and which were kept.
 - **allowBuilds added**: each entry and the reason in its comment.
 - **Left for you**: release-age reds, what the audit still reports, anything you chose not to do.
 - **Fenro tasks filed**: keys with titles, and existing tasks you added notes to.
