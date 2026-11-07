@@ -59,10 +59,10 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@modelcontextprotocol/sdk": "^1.32.2",
-    "@playwright/mcp": "^0.0.83",
+    "@playwright/mcp": "^0.0.84",
     "@sentry/cli": "^3.8.2",
-    "eslint": "^10.13.0",
-    "globals": "^17.13.0",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
     "prettier": "3.9.10"
   },
   "license": "MIT",
