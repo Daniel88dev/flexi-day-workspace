@@ -7,8 +7,10 @@ MCP server.
   sub-repo (`Daniel88dev/flexi-day`, `-be`, `-emails`, `-rn`); the table in
   [`issue-tracker.md`](issue-tracker.md) picks one. Pass it to `list_tasks` as `repository`.
 - Space: `T` (personal).
-- Grilling: on the task. Post each round with `ask_questions`, call `wait_for_answers` while the
-  user is around, and finish the session as `paused` when the wait runs out.
+- Grilling: in the session. Ask each round in the conversation and record each decision on the
+  task with `add_note`. Never post questions with `ask_questions` unless the user asks for that in
+  this session; only then post the round, call `wait_for_answers`, and finish the session as
+  `paused` when the wait runs out.
 - Labels, and the skills each one brings:
 
 | Label                 | Means here                                    | Skills                                             |
