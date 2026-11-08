@@ -180,6 +180,9 @@ terminal.
   from `main` only if it doesn't exist yet in that repo.
 - Each ticket lands as exactly one commit on that branch. Follow-up runs on the same feature reuse
   the branch — never a second one.
+- Each repo gets one PR, from `feat/<feature-slug>` to `main`. Open it as a draft once the first
+  ticket lands in that repo, and mark it ready for review when the feature, final review fixes
+  included, is done. PRs never stack, and a ticket never gets a PR or pushed branch of its own.
 - `/implement-spec` uses `feat/<feature-slug>` as its integration branch, one per touched repo,
   and runs at most two implementer subagents at a time. The one-commit-per-ticket rule still
   holds for every merge onto that branch.
