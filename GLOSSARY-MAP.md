@@ -10,8 +10,8 @@ here.
   the backend models it. It owns the shared vocabulary; the other three borrow from it.
 - [flexi-day-rn](./flexi-day-rn/GLOSSARY.md) — the iPhone app. Coins only what the phone needs
   (local store, pending change) and uses the backend's words for everything else.
-- `flexi-day` — the web frontend. No glossary yet. The first frontend term that needs pinning down
-  goes in `flexi-day/GLOSSARY.md`.
+- [flexi-day](./flexi-day/GLOSSARY.md): the web frontend. Coins only what the web app owns (help
+  article, knowledge base) and uses the backend's words for everything else.
 - `flexi-day-emails` — the transactional email templates. No glossary yet, and it may never need
   one; the contract it has with the backend is in `flexi-day-emails/INTEGRATION.md`.
 
