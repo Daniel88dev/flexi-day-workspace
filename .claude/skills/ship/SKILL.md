@@ -23,7 +23,8 @@ for d in . flexi-day flexi-day-be flexi-day-emails flexi-day-rn; do echo "== $d"
   (`Daniel88dev/flexi-day-workspace`; root `CLAUDE.md` says what it versions). Changes spanning
   repos become **one PR per repo**.
 - Note the current branch per repo. If a repo is already on a feature branch, reuse it at gate 6
-  instead of branching again.
+  instead of branching again. If that branch already has an open PR, push to it and skip
+  `gh pr create`: a feature keeps one PR per repo.
 - Read the actual diff before anything else — you cannot review or test what you have not read:
   `git -C <repo> --no-pager diff -- . ':!pnpm-lock.yaml'`, plus read any untracked new files.
 
