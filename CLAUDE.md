@@ -184,6 +184,20 @@ terminal.
   and runs at most two implementer subagents at a time. The one-commit-per-ticket rule still
   holds for every merge onto that branch.
 
+## Help articles
+
+The Assistant and AI connections answer how-to questions from the help articles in
+`flexi-day/content/help/`, so an article that lags the app becomes a wrong answer. A change users
+can see or do, in any repo, adds or updates its articles in English and Czech in the same ticket:
+a page, a label, a rule, a limit, a price, a notification, an Assistant or MCP tool. The
+`help-article` skill has the format, the writing rules and the Czech hash; `pnpm run help:check` in
+`flexi-day` runs the checks.
+
+When `/to-tickets` publishes a ticket whose change users will see, the ticket gets the acceptance
+criterion "Help articles updated" and lists `flexi-day` among the repos it touches, because the
+articles live there even when the change itself is in the backend, the emails or the iPhone app.
+A refactor, a test or internal tooling gets no such criterion.
+
 ## Merging pull requests
 
 Never merge a PR yourself — no `gh pr merge`, no merge button, no auto-merge — unless the user
